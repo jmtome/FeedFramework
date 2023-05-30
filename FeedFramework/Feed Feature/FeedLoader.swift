@@ -7,6 +7,7 @@
 
 import Foundation
 
+// this is refactorable to the new Result<Success, Error> type from apple
 enum LoadFeedResult {
     case success([FeedItem])
     case error(Error)
@@ -15,4 +16,3 @@ enum LoadFeedResult {
 protocol FeedLoader {
     func load(completion: @escaping (LoadFeedResult) -> Void)
 }
- 
