@@ -11,6 +11,8 @@
 		FABF6D192A26761F009FE0E9 /* FeedFramework.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FABF6D0E2A26761E009FE0E9 /* FeedFramework.framework */; };
 		FABF6D1E2A26761F009FE0E9 /* FeedFrameworkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FABF6D1D2A26761F009FE0E9 /* FeedFrameworkTests.swift */; };
 		FABF6D1F2A26761F009FE0E9 /* FeedFramework.h in Headers */ = {isa = PBXBuildFile; fileRef = FABF6D112A26761E009FE0E9 /* FeedFramework.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		FABF6D292A26764F009FE0E9 /* FeedItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FABF6D282A26764E009FE0E9 /* FeedItem.swift */; };
+		FABF6D2A2A26764F009FE0E9 /* FeedItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FABF6D282A26764E009FE0E9 /* FeedItem.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -29,6 +31,7 @@
 		FABF6D122A26761E009FE0E9 /* FeedFramework.docc */ = {isa = PBXFileReference; lastKnownFileType = folder.documentationcatalog; path = FeedFramework.docc; sourceTree = "<group>"; };
 		FABF6D182A26761F009FE0E9 /* FeedFrameworkTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FeedFrameworkTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		FABF6D1D2A26761F009FE0E9 /* FeedFrameworkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedFrameworkTests.swift; sourceTree = "<group>"; };
+		FABF6D282A26764E009FE0E9 /* FeedItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedItem.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -73,6 +76,7 @@
 			children = (
 				FABF6D112A26761E009FE0E9 /* FeedFramework.h */,
 				FABF6D122A26761E009FE0E9 /* FeedFramework.docc */,
+				FABF6D282A26764E009FE0E9 /* FeedItem.swift */,
 			);
 			path = FeedFramework;
 			sourceTree = "<group>";
@@ -194,6 +198,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FABF6D292A26764F009FE0E9 /* FeedItem.swift in Sources */,
 				FABF6D132A26761E009FE0E9 /* FeedFramework.docc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -202,6 +207,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FABF6D2A2A26764F009FE0E9 /* FeedItem.swift in Sources */,
 				FABF6D1E2A26761F009FE0E9 /* FeedFrameworkTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -401,6 +407,7 @@
 		FABF6D262A26761F009FE0E9 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = YBSZVA7CYQ;
@@ -416,6 +423,7 @@
 		FABF6D272A26761F009FE0E9 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = YBSZVA7CYQ;
