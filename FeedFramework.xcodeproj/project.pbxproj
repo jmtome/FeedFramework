@@ -79,8 +79,7 @@
 			children = (
 				FABF6D112A26761E009FE0E9 /* FeedFramework.h */,
 				FABF6D122A26761E009FE0E9 /* FeedFramework.docc */,
-				FABF6D282A26764E009FE0E9 /* FeedItem.swift */,
-				FABF6D2B2A2676F2009FE0E9 /* FeedLoader.swift */,
+				FABF6D2E2A267908009FE0E9 /* Feed Feature */,
 			);
 			path = FeedFramework;
 			sourceTree = "<group>";
@@ -91,6 +90,15 @@
 				FABF6D1D2A26761F009FE0E9 /* FeedFrameworkTests.swift */,
 			);
 			path = FeedFrameworkTests;
+			sourceTree = "<group>";
+		};
+		FABF6D2E2A267908009FE0E9 /* Feed Feature */ = {
+			isa = PBXGroup;
+			children = (
+				FABF6D282A26764E009FE0E9 /* FeedItem.swift */,
+				FABF6D2B2A2676F2009FE0E9 /* FeedLoader.swift */,
+			);
+			path = "Feed Feature";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
