@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		FA2235DC2A2A80E900A5A9D8 /* XCTestCase+MemoryLeakTracking.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA2235DB2A2A80E900A5A9D8 /* XCTestCase+MemoryLeakTracking.swift */; };
 		FABF6D132A26761E009FE0E9 /* FeedFramework.docc in Sources */ = {isa = PBXBuildFile; fileRef = FABF6D122A26761E009FE0E9 /* FeedFramework.docc */; };
 		FABF6D192A26761F009FE0E9 /* FeedFramework.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FABF6D0E2A26761E009FE0E9 /* FeedFramework.framework */; };
 		FABF6D1E2A26761F009FE0E9 /* FeedFrameworkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FABF6D1D2A26761F009FE0E9 /* FeedFrameworkTests.swift */; };
@@ -36,6 +37,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		FA2235DB2A2A80E900A5A9D8 /* XCTestCase+MemoryLeakTracking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "XCTestCase+MemoryLeakTracking.swift"; sourceTree = "<group>"; };
 		FABF6D0E2A26761E009FE0E9 /* FeedFramework.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = FeedFramework.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		FABF6D112A26761E009FE0E9 /* FeedFramework.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FeedFramework.h; sourceTree = "<group>"; };
 		FABF6D122A26761E009FE0E9 /* FeedFramework.docc */ = {isa = PBXFileReference; lastKnownFileType = folder.documentationcatalog; path = FeedFramework.docc; sourceTree = "<group>"; };
@@ -69,6 +71,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		FA2235DA2A2A80BA00A5A9D8 /* Helpers */ = {
+			isa = PBXGroup;
+			children = (
+				FA2235DB2A2A80E900A5A9D8 /* XCTestCase+MemoryLeakTracking.swift */,
+			);
+			path = Helpers;
+			sourceTree = "<group>";
+		};
 		FABF6D042A26761E009FE0E9 = {
 			isa = PBXGroup;
 			children = (
@@ -129,6 +139,7 @@
 		FABF6D3C2A26C84D009FE0E9 /* Feed API */ = {
 			isa = PBXGroup;
 			children = (
+				FA2235DA2A2A80BA00A5A9D8 /* Helpers */,
 				FABF6D2F2A2679C0009FE0E9 /* RemoteFeedLoaderTests.swift */,
 				FABF6D3D2A284842009FE0E9 /* URLSessionHTTPClientTests.swift */,
 			);
@@ -259,6 +270,7 @@
 			files = (
 				FABF6D312A2679C0009FE0E9 /* RemoteFeedLoaderTests.swift in Sources */,
 				FABF6D2D2A2676F2009FE0E9 /* FeedLoader.swift in Sources */,
+				FA2235DC2A2A80E900A5A9D8 /* XCTestCase+MemoryLeakTracking.swift in Sources */,
 				FABF6D382A26AFCF009FE0E9 /* HTTPClient.swift in Sources */,
 				FABF6D3E2A284842009FE0E9 /* URLSessionHTTPClientTests.swift in Sources */,
 				FABF6D3B2A26B04F009FE0E9 /* FeedItemsMapper.swift in Sources */,
