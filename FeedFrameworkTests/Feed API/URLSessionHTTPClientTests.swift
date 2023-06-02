@@ -9,28 +9,6 @@ import XCTest
 import FeedFramework
 
 
-
-class URLSessionHTTPClient: HTTPClient {
-    private let session: URLSession
-    
-    init(session: URLSession = .shared) {
-        self.session = session
-    }
-    
-    struct UnexpectedValuesRepresentation: Error {}
-    func get(from url: URL, completion: @escaping (HTTPClientResult) -> Void) {
-        session.dataTask(with: url) { data, response, error in
-            if let error = error {
-                completion(.failure(error))
-            } else if let data = data, let response = response as? HTTPURLResponse {
-                completion(.success(data, response))
-            } else {
-                completion(.failure(UnexpectedValuesRepresentation()))
-            }
-        }.resume()
-    }
-}
-
 //Approaches to testing the network:
 //1) end to end : test with backend, bad bc you might not have a backend yet
 //2) subclass-based mocking
