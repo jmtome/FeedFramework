@@ -5,6 +5,30 @@
 //  Created by macbook on 30/05/2023.
 //
 
+/*
+--------------------------------------------
+| [FeedItemsMapper] <|- [RemoteFeedLoader]  |
+|                              |     |      |
+| <HttpClient> <|--------------      |      |
+|    ^                               |      |
+|    |                               |      |
+|    |                               -----------> <FeedLoader>
+|    |                                      |
+|    |                                      |
+| [URLSessionHTTPClient]                    |
+|      |                                    |
+|      |                                    |
+|      |                                    |
+______ | ___________________________________
+       -
+       V
+   {Backend}
+ */
+
+
+
+
+
 import Foundation
 
 public final class RemoteFeedLoader: FeedLoader {
