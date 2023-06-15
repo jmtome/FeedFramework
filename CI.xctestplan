@@ -1,0 +1,46 @@
+{
+  "configurations" : [
+    {
+      "id" : "E5D960A2-DB3C-45DF-89CB-9B91C64C5914",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : {
+      "targets" : [
+        {
+          "containerPath" : "container:FeedFramework.xcodeproj",
+          "identifier" : "FABF6D172A26761F009FE0E9",
+          "name" : "FeedFrameworkTests"
+        },
+        {
+          "containerPath" : "container:FeedFramework.xcodeproj",
+          "identifier" : "FA51C0D42A3A4885002EC274",
+          "name" : "FeedAPIEndToEndTests"
+        }
+      ]
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:FeedFramework.xcodeproj",
+        "identifier" : "FA51C0D42A3A4885002EC274",
+        "name" : "FeedAPIEndToEndTests"
+      }
+    },
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:FeedFramework.xcodeproj",
+        "identifier" : "FABF6D172A26761F009FE0E9",
+        "name" : "FeedFrameworkTests"
+      }
+    }
+  ],
+  "version" : 1
+}

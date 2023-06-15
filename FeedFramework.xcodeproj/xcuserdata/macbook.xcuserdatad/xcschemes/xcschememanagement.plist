@@ -4,10 +4,15 @@
 <dict>
 	<key>SchemeUserState</key>
 	<dict>
-		<key>FeedAPIEndToEndTests.xcscheme_^#shared#^_</key>
+		<key>CI.xcscheme_^#shared#^_</key>
 		<dict>
 			<key>orderHint</key>
 			<integer>1</integer>
+		</dict>
+		<key>FeedAPIEndToEndTests.xcscheme_^#shared#^_</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>2</integer>
 		</dict>
 		<key>FeedFramework.xcscheme_^#shared#^_</key>
 		<dict>
@@ -17,6 +22,11 @@
 	</dict>
 	<key>SuppressBuildableAutocreation</key>
 	<dict>
+		<key>FA51C0D42A3A4885002EC274</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
 		<key>FABF6D0D2A26761E009FE0E9</key>
 		<dict>
 			<key>primary</key>
