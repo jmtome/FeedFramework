@@ -30,7 +30,7 @@ class LocalFeedLoader {
 class FeedStore {
     typealias DeletionCompletion = (Error?) -> Void
     typealias InsertionCompletion = (Error?) -> Void
-
+    
     
     enum ReceivedMessage: Equatable {
         case deleteCachedFeed
@@ -41,7 +41,7 @@ class FeedStore {
     
     private var deletionCompletions = [DeletionCompletion]()
     private var insertionCompletions = [InsertionCompletion]()
-
+    
     
     func deleteCachedFeed(completion: @escaping DeletionCompletion) {
         deletionCompletions.append(completion)
@@ -70,7 +70,7 @@ class FeedStore {
 }
 
 final class CacheFeedUseCaseTests: XCTestCase {
-
+    
     func test_init_doesNotMessageStoreUponCreation() {
         let (_, store) = makeSUT()
         
@@ -80,7 +80,7 @@ final class CacheFeedUseCaseTests: XCTestCase {
     func test_save_requestsCacheDeletion() {
         let items = [uniqueItem(), uniqueItem()]
         let (sut, store) = makeSUT()
-
+        
         sut.save(items) { _ in }
         
         XCTAssertEqual(store.receivedMessages, [.deleteCachedFeed])
@@ -113,7 +113,7 @@ final class CacheFeedUseCaseTests: XCTestCase {
         let (sut, store) = makeSUT()
         let deletionError = anyNSError()
         let exp = expectation(description: "Wait for save completion")
-       
+        
         var receivedError: Error?
         sut.save(items) { error in
             receivedError = error
@@ -130,7 +130,7 @@ final class CacheFeedUseCaseTests: XCTestCase {
         let (sut, store) = makeSUT()
         let insertionError = anyNSError()
         let exp = expectation(description: "Wait for save completion")
-       
+        
         var receivedError: Error?
         sut.save(items) { error in
             receivedError = error
@@ -147,9 +147,8 @@ final class CacheFeedUseCaseTests: XCTestCase {
     func test_save_succeedsOnSuccessfulCacheInsertion() {
         let items = [uniqueItem(), uniqueItem()]
         let (sut, store) = makeSUT()
-        let insertionError = anyNSError()
         let exp = expectation(description: "Wait for save completion")
-       
+        
         var receivedError: Error?
         sut.save(items) { error in
             receivedError = error
