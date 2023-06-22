@@ -9,7 +9,7 @@ import Foundation
 
 // this is refactorable to the new Result<Success, Error> type from apple
 public enum LoadFeedResult {
-    case success([FeedItem])
+    case success([FeedImage])
     case failure(Error)
 }
 
