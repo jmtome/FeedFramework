@@ -5,6 +5,25 @@
 //  Created by macbook on 21/06/2023.
 //
 
+//Use cases are the business logic (some people call them controllers, some interactors, some model controllers)
+//The business logic is the what, the recipe, and the framework specific logic is the How.
+//For example the CoreData implementation of the FeedStore interface will encode it for CoreData, whereas a Realm implementation of the FeedStore interface will
+//encode it for Realm database.
+//Frameworks dont make decisions, they just obey commands, so its easier to replace implementations of those frameworks because all of the business logic is encapsulated
+//in the Controller types or the Use Case Types. This is the essence of modularity, being able to change implementation on-demand without having to make modifications
+//to the system
+
+
+/*
+        FEED CACHE MODULE
+        -------------------------------------------
+        |                                         |
+        |    [LocalFeedLoader] ---|> <FeedStore>  |
+        |                                         |
+        -------------------------------------------
+ */
+
+
 import Foundation
 
 public final class LocalFeedLoader {
@@ -30,10 +49,16 @@ public final class LocalFeedLoader {
         }
     }
     private func cache(_ items: [FeedItem], with completion: @escaping (SaveResult) -> Void) {
-        store.insert(items, timestamp: currentDate()) { [weak self] error in
+        store.insert(items.toLocal() , timestamp: currentDate()) { [weak self] error in
             guard self != nil else { return }
             completion(error)
         }
+    }
+}
+
+private extension Array where Element == FeedItem {
+    func toLocal() -> [LocalFeedItem] {
+        return map { LocalFeedItem(id: $0.id, description: $0.description, location: $0.location, imageURL: $0.imageURL)}
     }
 }
 

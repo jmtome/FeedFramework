@@ -6,6 +6,7 @@
 //
 
 /*
+ FEED API MODULE
 --------------------------------------------
 | [FeedItemsMapper] <|- [RemoteFeedLoader]  |
 |                              |     |      |
