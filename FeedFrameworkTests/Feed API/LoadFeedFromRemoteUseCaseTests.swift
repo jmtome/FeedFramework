@@ -67,7 +67,7 @@ class LoadFeedFromRemoteUseCaseTests: XCTestCase {
         let (sut, client) = makeSUT()
         
         expect(sut, toCompleteWith: failure(.invalidData)) {
-            let invalidJSON = Data("invalid json".utf8)
+            let invalidJSON = Data("invalid json".utf8)  
             client.complete(withStatusCode: 200, data: invalidJSON)
         }
     }
