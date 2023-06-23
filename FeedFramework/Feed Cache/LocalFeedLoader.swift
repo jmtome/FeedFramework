@@ -68,6 +68,7 @@ public final class LocalFeedLoader {
         store.retrieve { [unowned self] result in
             switch result {
             case .failure(let error):
+                self.store.deleteCachedFeed { _ in }
                 completion(.failure(error))
             case .found(feed: let feed, timestamp: let timestamp) where self.validate(timestamp):
                 completion(.success(feed.toModels()))
@@ -94,7 +95,7 @@ public final class LocalFeedLoader {
 
 private extension Array where Element == FeedImage {
     func toLocal() -> [LocalFeedImage] {
-        return map { LocalFeedImage(id: $0.id, description: $0.description, location: $0.location, url: $0.url)}
+        return map { LocalFeedImage(id: $0.id, description: $0.description, location: $0.location, url: $0.url) }
     }
 }
 

@@ -185,9 +185,9 @@
 			children = (
 				FA1AD8092A43EE7200B8AB35 /* Feed Cache */,
 				FABF6D322A268B6A009FE0E9 /* FeedAPI */,
+				FABF6D2E2A267908009FE0E9 /* Feed Feature */,
 				FABF6D112A26761E009FE0E9 /* FeedFramework.h */,
 				FABF6D122A26761E009FE0E9 /* FeedFramework.docc */,
-				FABF6D2E2A267908009FE0E9 /* Feed Feature */,
 			);
 			path = FeedFramework;
 			sourceTree = "<group>";
