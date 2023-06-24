@@ -6,6 +6,7 @@
 //
 
 //tags: core domain, application business logic, business logic, use case, validation policy.
+//impure function/ pure function/type
 
 //Use cases are the application specific business logic (some people call them controllers, some interactors, some model controllers)
 //The business logic is the what, the recipe, and the framework specific logic is the How.
@@ -15,6 +16,9 @@
 //in the Controller types or the Use Case Types. This is the essence of modularity, being able to change implementation on-demand without having to make modifications
 //to the system
 
+//Business models are normally separated into models that have identity for example a Customer (you can identify a customer) and models that have no identity like a Policy (you cannot identify a policy), policies are rules. We separate business rules with identity by calling them Entities.
+//So, Entities are models with identity, and Value objects are models with no identity. In this case the Policy has no identity it just encaptulates a rule that we need
+// which means we dont need an instance of the FeedCachePolicy , it can be Static. (since the policy holds no state, its deterministic and has no side effects and it has no identity), therefore it shouldnt be instanciated so we make its initializer empty and private.
 
 /*
  FEED CACHE MODULE
@@ -50,13 +54,14 @@
 import Foundation
 
 private final class FeedCachePolicy {
-    private let calendar = Calendar(identifier: .gregorian)
+    private init() {}
     
-    private var maxCacheAgeInDays: Int {
+    private static let calendar = Calendar(identifier: .gregorian)
+    private static var maxCacheAgeInDays: Int {
         return 7
     }
     
-    func validate(_ timestamp: Date, against date: Date) -> Bool {
+    static func validate(_ timestamp: Date, against date: Date) -> Bool {
         guard let maxCacheAge = calendar.date(byAdding: .day, value: maxCacheAgeInDays, to: timestamp) else { return false }
         return date < maxCacheAge
     }
@@ -65,7 +70,6 @@ private final class FeedCachePolicy {
 public final class LocalFeedLoader {
     private let store: FeedStore
     private let currentDate: () -> Date
-    private let cachePolicy = FeedCachePolicy()
     
     public init(store: FeedStore, currentDate: @escaping () -> Date) {
         self.store = store
@@ -106,7 +110,7 @@ extension LocalFeedLoader: FeedLoader {
             case .failure(let error):
                 completion(.failure(error))
                 
-            case .found(feed: let feed, timestamp: let timestamp) where self.cachePolicy.validate(timestamp, against: self.currentDate()):
+            case .found(feed: let feed, timestamp: let timestamp) where FeedCachePolicy.validate(timestamp, against: self.currentDate()):
                 completion(.success(feed.toModels()))
                 
             case .found, .empty:
@@ -124,7 +128,7 @@ extension LocalFeedLoader {
             case .failure:
                 self.store.deleteCachedFeed { _ in }
                 
-            case .found(feed: _, timestamp: let timestamp) where !self.cachePolicy.validate(timestamp, against: self.currentDate()):
+            case .found(feed: _, timestamp: let timestamp) where !FeedCachePolicy.validate(timestamp, against: self.currentDate()):
                 self.store.deleteCachedFeed { _ in }
             case .empty, .found: break
             }
