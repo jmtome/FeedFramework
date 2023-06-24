@@ -15,25 +15,25 @@
 
 
 /*
-                          FEED CACHE MODULE
-                          ------------------------------------------------
-                          |                                              |
-                          |    [LocalFeedLoader] ---|> [LocalFeedImage]   |
-                          |        |    |                      ^         |
-                          |        |    |                      -         |
-                          |        |    |                      |         |
-                          |        |    |                      |         |
-                          |        |    -------------|>   <FeedStore>    |
-                          |        |                                     |
-                          ---------|--------------------------------------
-    -------------------------------|--------
-    |                              -       |
-    |                              V       |
-    |   <FeedLoader> -----|>   [FeedImage]  |
-    |                                      |
-    ----------------------------------------
-                         FEED FEATURE MODULE
-
+ FEED CACHE MODULE
+ ------------------------------------------------
+ |                                              |
+ |    [LocalFeedLoader] ---|> [LocalFeedImage]   |
+ |        |    |                      ^         |
+ |        |    |                      -         |
+ |        |    |                      |         |
+ |        |    |                      |         |
+ |        |    -------------|>   <FeedStore>    |
+ |        |                                     |
+ ---------|--------------------------------------
+ -------------------------------|--------
+ |                              -       |
+ |                              V       |
+ |   <FeedLoader> -----|>   [FeedImage]  |
+ |                                      |
+ ----------------------------------------
+ FEED FEATURE MODULE
+ 
  */
 
 
@@ -52,6 +52,16 @@ public final class LocalFeedLoader {
         self.currentDate = currentDate
     }
     
+    private var maxCacheAgeInDays: Int {
+        return 7
+    }
+    
+    private func validate(_ timestamp: Date) -> Bool {
+        guard let maxCacheAge = calendar.date(byAdding: .day, value: maxCacheAgeInDays, to: timestamp) else { return false }
+        return currentDate() < maxCacheAge
+    }
+}
+extension LocalFeedLoader {
     public func save(_ feed: [FeedImage], completion: @escaping (SaveResult) -> Void) {
         store.deleteCachedFeed { [weak self] error in
             guard let self = self else { return }
@@ -64,11 +74,15 @@ public final class LocalFeedLoader {
         }
     }
     
-    //Loading from the cache is a "Query" and ideally should have no side effects. Deleting the cache alters the state of the system, whch is a side-effect.
-    //So it must be refactored
-    //This means that the use case was too bloated, therefore we split the previous use case of "load feed cache" into two, a "load feed cache" and a new
-    //"validate feed cache use case"
-    
+    private func cache(_ feed: [FeedImage], with completion: @escaping (SaveResult) -> Void) {
+        store.insert(feed.toLocal() , timestamp: currentDate()) { [weak self] error in
+            guard self != nil else { return }
+            completion(error)
+        }
+    }
+}
+
+extension LocalFeedLoader {
     public func load(completion: @escaping (LoadResult) -> Void) {
         store.retrieve { [weak self] result in
             guard let self = self else { return }
@@ -85,7 +99,9 @@ public final class LocalFeedLoader {
             }
         }
     }
-    
+}
+
+extension LocalFeedLoader {
     public func validateCache() {
         store.retrieve { [weak self] result in
             guard let self = self else { return }
@@ -97,22 +113,6 @@ public final class LocalFeedLoader {
                 self.store.deleteCachedFeed { _ in }
             case .empty, .found: break
             }
-        }
-
-    }
-    
-    private var maxCacheAgeInDays: Int {
-        return 7
-    }
-    private func validate(_ timestamp: Date) -> Bool {
-        guard let maxCacheAge = calendar.date(byAdding: .day, value: maxCacheAgeInDays, to: timestamp) else { return false }
-        return currentDate() < maxCacheAge
-    }
-    
-    private func cache(_ feed: [FeedImage], with completion: @escaping (SaveResult) -> Void) {
-        store.insert(feed.toLocal() , timestamp: currentDate()) { [weak self] error in
-            guard self != nil else { return }
-            completion(error)
         }
     }
 }

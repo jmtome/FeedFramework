@@ -8,6 +8,11 @@
 import XCTest
 import FeedFramework
 
+//Loading from the cache is a "Query" and ideally should have no side effects. Deleting the cache alters the state of the system, whch is a side-effect.
+//So it must be refactored
+//This means that the use case was too bloated, therefore we split the previous use case of "load feed cache" into two, a "load feed cache" and a new
+//"validate feed cache use case"
+
 final class ValidateFeedCacheUseCaseTests: XCTestCase {
 
     func test_init_doesNotMessageStoreUponCreation() {
