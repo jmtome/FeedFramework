@@ -5,6 +5,7 @@
 //  Created by macbook on 21/06/2023.
 //
 
+//MARK: - Notes
 //tags: core domain, application business logic, business logic, use case, validation policy.
 //impure function/ pure function/type
 
@@ -28,6 +29,16 @@
 //The LocalFeedLoader should encapsulate application-specific logic only, and communicate with Models to perform business logic
 //
 //Rules and Policies (validation logic) are better suited in a Domain Model, that is application-agnostic
+
+ 
+//The infraestructure are the components that we are pushing to the boundaries of the system, they are the components with side-effects, here we can have
+//the frameworks, for example CoreData, and we already implemented one infra component, URLSession.
+
+//There should be no arrows pointing to the infrastructure, no one should depend on it directly. The Infrastructure should depend on the business logic, so that
+//we can use the infra like plugins and replace them easily being able to test them in isolation.
+//This is all possible with abstractions and inverse dependency injection.
+
+
 
 
 /*
