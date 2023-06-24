@@ -36,6 +36,14 @@
  
  */
 
+//Validation logic is policy, and use cases are not policies, use cases encapsulate application specific logic.
+//The policy can be represented as a business model, and use cases are not business models, because business models are
+//application-logic agnostic and can be used cross applications, should be agnostic of frameworks and side-effects.
+
+//The LocalFeedLoader should encapsulate application-specific logic only, and communicate with Models to perform business logic
+//
+//Rules and Policies (validation logic) are better suited in a Domain Model, that is application-agnostic
+
 
 import Foundation
 
