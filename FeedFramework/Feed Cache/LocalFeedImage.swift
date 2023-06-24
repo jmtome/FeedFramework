@@ -8,7 +8,7 @@
 import Foundation
 
 //DTO: Data transfer object, used to remove coupling.
-public struct LocalFeedImage: Equatable {
+public struct LocalFeedImage: Equatable, Codable {
     public let id: UUID
     public let description: String?
     public let location: String?
