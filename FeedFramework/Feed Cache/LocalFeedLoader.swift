@@ -64,18 +64,27 @@ public final class LocalFeedLoader {
         }
     }
     
+    //Loading from the cache is a "Query" and ideally should have no side effects. Deleting the cache alters the state of the system, whch is a side-effect.
+    //So it must be refactored
+    //This means that the use case was too bloated, therefore we split the previous use case of "load feed cache" into two, a "load feed cache" and a new
+    //"validate feed cache use case"
+    
     public func load(completion: @escaping (LoadResult) -> Void) {
         store.retrieve { [weak self] result in
             guard let self = self else { return }
+            
             switch result {
             case .failure(let error):
                 self.store.deleteCachedFeed { _ in }
                 completion(.failure(error))
+                
             case .found(feed: let feed, timestamp: let timestamp) where self.validate(timestamp):
                 completion(.success(feed.toModels()))
+                
             case .found:
                 self.store.deleteCachedFeed { _ in }
                 completion(.success([]))
+                
             case .empty:
                 completion(.success([]))
             }
