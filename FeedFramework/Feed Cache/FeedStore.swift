@@ -37,10 +37,12 @@ public protocol FeedStore {
 //MARK: - Expectations/Especifications
 /*
  - Retrieve
-    - Empty Cache
+    - Empty Cache returns empty
+    - Empty Cache twice returns empty (no-side-effects)
     - Non-Empty cache returns data
     - Non-Empty cache twice returns same data (no-side-effects)
-    - Error (if applicable, e.g., invalid data)
+    - Error returns error (if applicable, e.g., invalid data)
+    - Error twice returns same error
  
  - Insert
     - To empty cache stores data
