@@ -43,8 +43,8 @@ public class CodableFeedStore: FeedStore {
         }
     }
 
-    //This Queue is a background queue, but by default operations run serially.
-    private let queue = DispatchQueue(label: "\(CodableFeedStore.self)Queue", qos: .userInitiated)
+    //This Queue is a background queue, but by default operations run serially. (side-effects are the enemy of concurrency)
+    private let queue = DispatchQueue(label: "\(CodableFeedStore.self)Queue", qos: .userInitiated, attributes: .concurrent)
     private let storeURL: URL
 
     public init(storeURL: URL) {
@@ -72,7 +72,9 @@ public class CodableFeedStore: FeedStore {
     public func insert(_ feed: [LocalFeedImage], timestamp: Date, completion: @escaping InsertionCompletion) {
         let storeURL = self.storeURL
         
-        queue.async {
+        //we use the flag .barrier only on the operations that have side effects, so when these operations are running they will put the queue on hold
+        //until they are done. (this way, the operations without side effects can run concurrently, the ones with side-effects wait to finish)
+        queue.async(flags: .barrier) {
             do {
                 let encoder = JSONEncoder()
                 let cache = Cache(feed: feed.map(CodableFeedImage.init), timestamp: timestamp)
@@ -88,7 +90,7 @@ public class CodableFeedStore: FeedStore {
     public func deleteCachedFeed(completion: @escaping DeletionCompletion) {
         let storeURL = self.storeURL
         
-        queue.async {
+        queue.async(flags: .barrier) {
             guard FileManager.default.fileExists(atPath: storeURL.path) else {
                 return completion(nil)
             }
