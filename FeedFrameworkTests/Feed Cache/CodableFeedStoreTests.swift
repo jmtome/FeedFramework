@@ -115,37 +115,38 @@ final class CodableFeedStoreTests: XCTestCase {
 
         sut.insert(feed, timestamp: timestamp) { insertionError in
             XCTAssertNil(insertionError, "Expected feed to be inserted successfully")
-
-            sut.retrieve { retrieveResult in
-                switch retrieveResult {
-                case .found(feed: let retrievedFeed, timestamp: let retrievedTimestamp):
-                    XCTAssertEqual(retrievedFeed, feed)
-                    XCTAssertEqual(retrievedTimestamp, timestamp)
-                default:
-                    XCTFail("Expected found result with feed \(feed) and timestamp \(timestamp), got \(retrieveResult) instead ")
-                }
-                exp.fulfill()
-            }
+            exp.fulfill()
         }
         wait(for: [exp], timeout: 1.0)
+        expect(sut, toRetrieve: .found(feed: feed, timestamp: timestamp))
     }
     
     func test_retrieve_hasNoSideEffectsOnNonEmptyCache() {
-        //Given
         let sut = createSUT()
         let feed = uniqueImageFeed().local
         let timestamp = Date()
 
-        //When
         let exp = expectation(description: "Wait for cache retrieval")
+
         sut.insert(feed, timestamp: timestamp) { insertionError in
             XCTAssertNil(insertionError, "Expected feed to be inserted successfully")
-            exp.fulfill()
+
+            sut.retrieve { firstResult in
+                sut.retrieve { secondResult in
+                    switch (firstResult, secondResult) {
+                    case (.found(let firstFoundFeed, let firstFoundTimestamp), .found(let secondFoundFeed, let secondFoundTimestamp)):
+                        XCTAssertEqual(firstFoundFeed, feed)
+                        XCTAssertEqual(firstFoundTimestamp, timestamp)
+                        XCTAssertEqual(secondFoundFeed, feed)
+                        XCTAssertEqual(secondFoundTimestamp, timestamp)
+                    default:
+                        XCTFail("Expected retrieving twice from non empty cache to deliver same found result with feed \(feed), and timestamp: \(timestamp), got \(firstResult) and \(secondResult) instead")
+                    }
+                    exp.fulfill()
+                }
+            }
         }
         wait(for: [exp], timeout: 1.0)
-        
-        //Then
-        expect(sut, toRetrieve: .found(feed: feed, timestamp: timestamp))
     }
     
     //MARK: - Helpers
