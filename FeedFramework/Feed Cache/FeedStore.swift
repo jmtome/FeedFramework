@@ -20,10 +20,14 @@ public typealias CachedFeed = (feed: [LocalFeedImage], timestamp: Date)
 
 //Here the side effects overlap, when you delete a cache you affect the insert and when you insert you affect the delete and the retrieve is affected by both.
 public protocol FeedStore {
-    typealias RetrievalResult = Result<CachedFeed?, Error>
 
-    typealias DeletionCompletion = (Error?) -> Void
-    typealias InsertionCompletion = (Error?) -> Void
+    typealias DeletionResult = Error?
+    typealias DeletionCompletion = (DeletionResult) -> Void
+    
+    typealias InsertionResult = Error?
+    typealias InsertionCompletion = (InsertionResult) -> Void
+    
+    typealias RetrievalResult = Result<CachedFeed?, Error>
     typealias RetrievalCompletion = (RetrievalResult) -> Void
 
     /// The completion handler can be invoked in any thread.
