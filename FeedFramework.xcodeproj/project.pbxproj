@@ -38,6 +38,9 @@
 		FA799A132A4B7818004963A6 /* FeedFrameworkCacheIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA799A122A4B7818004963A6 /* FeedFrameworkCacheIntegrationTests.swift */; };
 		FA799A142A4B7818004963A6 /* FeedFramework.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FABF6D0E2A26761E009FE0E9 /* FeedFramework.framework */; };
 		FA799A1B2A4B7BE0004963A6 /* XCTestCase+MemoryLeakTracking.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA2235DB2A2A80E900A5A9D8 /* XCTestCase+MemoryLeakTracking.swift */; };
+		FA799A1D2A4B7D19004963A6 /* FeedCacheTestHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA009E852A4671C100779067 /* FeedCacheTestHelpers.swift */; };
+		FA799A1E2A4B7D21004963A6 /* SharedTestHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA009E872A4672B800779067 /* SharedTestHelpers.swift */; };
+		FA799A1F2A4B7D23004963A6 /* SharedTestHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA009E872A4672B800779067 /* SharedTestHelpers.swift */; };
 		FAA6B14C2A4A4B46002CB607 /* CodableFeedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAA6B14B2A4A4B46002CB607 /* CodableFeedStore.swift */; };
 		FABF6D132A26761E009FE0E9 /* FeedFramework.docc in Sources */ = {isa = PBXBuildFile; fileRef = FABF6D122A26761E009FE0E9 /* FeedFramework.docc */; };
 		FABF6D192A26761F009FE0E9 /* FeedFramework.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FABF6D0E2A26761E009FE0E9 /* FeedFramework.framework */; };
@@ -504,6 +507,7 @@
 			files = (
 				FA51C0D82A3A4885002EC274 /* FeedAPIEndToEndTests.swift in Sources */,
 				FA51C0DF2A3ABBEB002EC274 /* XCTestCase+MemoryLeakTracking.swift in Sources */,
+				FA799A1F2A4B7D23004963A6 /* SharedTestHelpers.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -511,7 +515,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FA799A1E2A4B7D21004963A6 /* SharedTestHelpers.swift in Sources */,
 				FA799A132A4B7818004963A6 /* FeedFrameworkCacheIntegrationTests.swift in Sources */,
+				FA799A1D2A4B7D19004963A6 /* FeedCacheTestHelpers.swift in Sources */,
 				FA799A1B2A4B7BE0004963A6 /* XCTestCase+MemoryLeakTracking.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
