@@ -28,6 +28,7 @@
         }
       ]
     },
+    "testExecutionOrdering" : "random",
     "threadSanitizerEnabled" : true
   },
   "testTargets" : [
