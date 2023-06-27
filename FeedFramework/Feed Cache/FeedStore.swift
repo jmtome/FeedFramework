@@ -8,15 +8,7 @@
 import Foundation
 
 
-public struct CachedFeed {
-    public let feed: [LocalFeedImage]
-    public let timestamp: Date
-    
-    public init(feed: [LocalFeedImage], timestamp: Date) {
-        self.feed = feed
-        self.timestamp = timestamp
-    }
-}
+public typealias CachedFeed = (feed: [LocalFeedImage], timestamp: Date)
 
 //The operations we need to perform here have no business logic. For example 'insert' wont have any business logic deciding whether or not to insert
 //according to the timestamp, that was already decided by the business logic, here its simply obeying to commands.
