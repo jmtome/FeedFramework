@@ -47,6 +47,13 @@
         "identifier" : "FABF6D172A26761F009FE0E9",
         "name" : "FeedFrameworkTests"
       }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:FeedFramework.xcodeproj",
+        "identifier" : "FA799A0F2A4B7818004963A6",
+        "name" : "FeedFrameworkCacheIntegrationTests"
+      }
     }
   ],
   "version" : 1

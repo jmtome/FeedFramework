@@ -8,9 +8,14 @@
 import Foundation
 
 
-public enum CachedFeed {
-    case empty
-    case found(feed: [LocalFeedImage], timestamp: Date)
+public struct CachedFeed {
+    public let feed: [LocalFeedImage]
+    public let timestamp: Date
+    
+    public init(feed: [LocalFeedImage], timestamp: Date) {
+        self.feed = feed
+        self.timestamp = timestamp
+    }
 }
 
 //The operations we need to perform here have no business logic. For example 'insert' wont have any business logic deciding whether or not to insert
@@ -23,7 +28,7 @@ public enum CachedFeed {
 
 //Here the side effects overlap, when you delete a cache you affect the insert and when you insert you affect the delete and the retrieve is affected by both.
 public protocol FeedStore {
-    typealias RetrievalResult = Result<CachedFeed, Error>
+    typealias RetrievalResult = Result<CachedFeed?, Error>
 
     typealias DeletionCompletion = (Error?) -> Void
     typealias InsertionCompletion = (Error?) -> Void
