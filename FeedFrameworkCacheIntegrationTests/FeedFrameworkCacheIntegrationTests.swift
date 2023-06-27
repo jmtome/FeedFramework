@@ -63,8 +63,8 @@ final class FeedFrameworkCacheIntegrationTests: XCTestCase {
     }
     
 
-    // MARK: - Toggle Infrastructure Testing (for CoreData Store or Codable Store) 
-    private var testForCodable: Bool = true
+    // MARK: - Toggle Infrastructure Testing (for CoreData Store or Codable Store)
+    private var testForCodable: Bool = false
     // MARK: - Helpers
     
     private func makeSUT(file: StaticString = #file, line: UInt = #line) -> LocalFeedLoader {
