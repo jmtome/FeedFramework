@@ -62,16 +62,26 @@ final class FeedFrameworkCacheIntegrationTests: XCTestCase {
         expect(sutToPerformLoad, toLoad: latestFeed)
     }
     
-    
+
+    // MARK: - Toggle Infrastructure Testing (for CoreData Store or Codable Store) 
+    private var testForCodable: Bool = true
     // MARK: - Helpers
     
     private func makeSUT(file: StaticString = #file, line: UInt = #line) -> LocalFeedLoader {
-        let storeBundle = Bundle(for: CoreDataFeedStore.self)
         let storeURL = testSpecificStoreURL()
-        let store = try! CoreDataFeedStore(storeURL: storeURL, bundle: storeBundle)
+        var store: FeedStore!
+        
+        if testForCodable {
+            store = CodableFeedStore(storeURL: storeURL)
+        } else {
+            //Test for CoreData
+            let storeBundle = Bundle(for: CoreDataFeedStore.self)
+            store = try! CoreDataFeedStore(storeURL: storeURL, bundle: storeBundle)
+        }
+        
         let sut = LocalFeedLoader(store: store, currentDate: Date.init)
         
-        trackForMemoryLeaks(store, file: file, line: line)
+        trackForMemoryLeaks(store as AnyObject, file: file, line: line)
         trackForMemoryLeaks(sut, file: file, line: line)
         return sut
     }
