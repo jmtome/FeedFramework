@@ -7,12 +7,11 @@
 
 import Foundation
 
-public enum RetrieveCachedFeedResult {
+
+public enum CachedFeed {
     case empty
     case found(feed: [LocalFeedImage], timestamp: Date)
-    case failure(Error)
 }
-
 
 //The operations we need to perform here have no business logic. For example 'insert' wont have any business logic deciding whether or not to insert
 //according to the timestamp, that was already decided by the business logic, here its simply obeying to commands.
@@ -24,9 +23,11 @@ public enum RetrieveCachedFeedResult {
 
 //Here the side effects overlap, when you delete a cache you affect the insert and when you insert you affect the delete and the retrieve is affected by both.
 public protocol FeedStore {
+    typealias RetrievalResult = Result<CachedFeed, Error>
+
     typealias DeletionCompletion = (Error?) -> Void
     typealias InsertionCompletion = (Error?) -> Void
-    typealias RetrievalCompletion = (RetrieveCachedFeedResult) -> Void
+    typealias RetrievalCompletion = (RetrievalResult) -> Void
 
     /// The completion handler can be invoked in any thread.
     /// Clients are responsible for dispatching to appropriate threads, if needed.
