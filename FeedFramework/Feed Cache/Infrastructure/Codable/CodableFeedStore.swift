@@ -7,6 +7,11 @@
 
 import Foundation
 
+
+//TODO: - Refactor this store so that it passes the tests, do not use.
+
+/// This CodableFeedStore is not compliant with the tests as of now. It should not be used.
+/// Use CoreDataFeedStore instead.
 public class CodableFeedStore: FeedStore {
     private struct Cache: Codable {
         let feed: [CodableFeedImage]
