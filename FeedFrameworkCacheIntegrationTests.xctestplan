@@ -1,0 +1,34 @@
+{
+  "configurations" : [
+    {
+      "id" : "067E85F7-B9E3-4504-8686-9755DEA9D1EF",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : {
+      "targets" : [
+        {
+          "containerPath" : "container:FeedFramework.xcodeproj",
+          "identifier" : "FABF6D0D2A26761E009FE0E9",
+          "name" : "FeedFramework"
+        }
+      ]
+    },
+    "testExecutionOrdering" : "random"
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:FeedFramework.xcodeproj",
+        "identifier" : "FA799A0F2A4B7818004963A6",
+        "name" : "FeedFrameworkCacheIntegrationTests"
+      }
+    }
+  ],
+  "version" : 1
+}

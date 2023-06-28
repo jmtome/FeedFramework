@@ -7,15 +7,9 @@
 
 import Foundation
 
-// this is refactorable to the new Result<Success, Error> type from apple
-public enum LoadFeedResult {
-    case success([FeedItem])
-    case failure(Error)
-}
-
 public protocol FeedLoader {
-    
-    func load(completion: @escaping (LoadFeedResult) -> Void)
+    typealias Result = Swift.Result<[FeedImage], Error>
+    func load(completion: @escaping (Result) -> Void)
 }
  
  
