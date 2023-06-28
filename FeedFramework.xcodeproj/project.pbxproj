@@ -215,7 +215,7 @@
 		FA7999DE2A4A952D004963A6 /* Infrastructure */ = {
 			isa = PBXGroup;
 			children = (
-				FA799A022A4B7319004963A6 /* Codable */,
+				FA799A022A4B7319004963A6 /* Codable(Refactor) */,
 				FA7999DF2A4A952D004963A6 /* CoreData */,
 			);
 			path = Infrastructure;
@@ -233,12 +233,12 @@
 			path = CoreData;
 			sourceTree = "<group>";
 		};
-		FA799A022A4B7319004963A6 /* Codable */ = {
+		FA799A022A4B7319004963A6 /* Codable(Refactor) */ = {
 			isa = PBXGroup;
 			children = (
 				FAA6B14B2A4A4B46002CB607 /* CodableFeedStore.swift */,
 			);
-			path = Codable;
+			path = "Codable(Refactor)";
 			sourceTree = "<group>";
 		};
 		FA799A0A2A4B7500004963A6 /* FeedStoreSpecs */ = {
