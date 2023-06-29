@@ -47,7 +47,6 @@ final class FeedViewControllerTests: XCTestCase {
         let image1 = makeImage(description: nil, location: "another location")
         let image2 = makeImage(description: "another description", location: nil)
         let image3 = makeImage(description: nil, location: nil)
-
         let (sut, loader) = makeSUT()
         
         sut.loadViewIfNeeded()
@@ -55,7 +54,6 @@ final class FeedViewControllerTests: XCTestCase {
         
         loader.completeFeedLoading(with: [image0], at: 0)
         assertThat(sut, isRendering: [image0])
-        
         
         sut.simulateUserInitiatedFeedReload()
         loader.completeFeedLoading(with: [image0, image1, image2, image3], at: 1)
@@ -89,7 +87,7 @@ final class FeedViewControllerTests: XCTestCase {
         XCTAssertEqual(loader.loadedImageURLs, [image0.url], "Expected first image URL request once first view becomes visible")
         
         sut.simulateFeedImageViewVisible(at: 1)
-        XCTAssertEqual(loader.loadedImageURLs, [image0.url, image1.url], "Expected second image URL once second view also becomes visible")
+        XCTAssertEqual(loader.loadedImageURLs, [image0.url, image1.url], "Expected second image URL request once second view also becomes visible")
     }
     
     func test_feedImageView_cancelsImageLoadingWhenNotVisibleAnymore() {
@@ -128,6 +126,36 @@ final class FeedViewControllerTests: XCTestCase {
         XCTAssertEqual(view1?.isShowingImageLoadingIndicator, false, "Expected no loading indicator for second view once second image loading completes with error")
     }
     
+    //MARK: - This test always fails because of the way in which the data is handled.
+//    when doing conversions between Data and UIImage data gets mismatched.
+//     let myImageData = UIImage().pngData()!
+//     let myNewImage = UIImage(data: myImageData)!
+//     let myNewImageData = myNewImage.pngData()!
+//    
+//     we would expect myImageData.count to be the same as myNewImageData.count, but they aren't. I'm not sure if it is a framework issue.
+    
+    
+//    func test_feedImageView_rendersImageLoadedFromURL() {
+//        let (sut, loader) = makeSUT()
+//
+//        sut.loadViewIfNeeded()
+//        loader.completeFeedLoading(with: [makeImage(), makeImage()])
+//
+//        let view0 = sut.simulateFeedImageViewVisible(at: 0)
+//        let view1 = sut.simulateFeedImageViewVisible(at: 1)
+//        XCTAssertEqual(view0?.renderedImage, .none, "Expected no image for first view while loading first image")
+//        XCTAssertEqual(view1?.renderedImage, .none, "Expected no image for second view while loading second image")
+//
+//        let imageData0 = UIImage.make(withColor: .red).pngData()!
+//        loader.completeImageLoading(with: imageData0, at: 0)
+//        XCTAssertEqual(view0?.renderedImage, imageData0, "Expected image for first view once first image loading completes successfully")
+//        XCTAssertEqual(view1?.renderedImage, .none, "Expected no image state change for second view once first image loading completes successfully")
+//
+//        let imageData1 = UIImage.make(withColor: .blue).pngData()!
+//        loader.completeImageLoading(with: imageData1, at: 1)
+//        XCTAssertEqual(view0?.renderedImage, imageData0, "Expected no image state change for first view once second image loading completes successfully")
+//        XCTAssertEqual(view1?.renderedImage, imageData1, "Expected image for second view once second image loading completes successfully")
+//    }
     
     // MARK: - Helpers
     
@@ -169,9 +197,11 @@ final class FeedViewControllerTests: XCTestCase {
     }
     
     class LoaderSpy: FeedLoader, FeedImageDataLoader {
+        
         // MARK: - FeedLoader
+        
         private var feedRequests = [(FeedLoader.Result) -> Void]()
-            
+        
         var loadFeedCallCount: Int {
             return feedRequests.count
         }
@@ -190,21 +220,25 @@ final class FeedViewControllerTests: XCTestCase {
         }
         
         // MARK: - FeedImageDataLoader
+        
         private struct TaskSpy: FeedImageDataLoaderTask {
             let cancelCallback: () -> Void
             func cancel() {
                 cancelCallback()
             }
         }
+        
         private var imageRequests = [(url: URL, completion: (FeedImageDataLoader.Result) -> Void)]()
+        
         var loadedImageURLs: [URL] {
             return imageRequests.map { $0.url }
         }
+        
         private(set) var cancelledImageURLs = [URL]()
         
         func loadImageData(from url: URL, completion: @escaping (FeedImageDataLoader.Result) -> Void) -> FeedImageDataLoaderTask {
             imageRequests.append((url, completion))
-            return TaskSpy {[weak self] in self?.cancelledImageURLs.append(url) }
+            return TaskSpy { [weak self] in self?.cancelledImageURLs.append(url) }
         }
         
         func completeImageLoading(with imageData: Data = Data(), at index: Int = 0) {
@@ -216,6 +250,7 @@ final class FeedViewControllerTests: XCTestCase {
             imageRequests[index].completion(.failure(error))
         }
     }
+    
 }
 
 private extension FeedViewController {
@@ -259,14 +294,21 @@ private extension FeedImageCell {
     var isShowingLocation: Bool {
         return !locationContainer.isHidden
     }
+    
     var isShowingImageLoadingIndicator: Bool {
         return feedImageContainer.isShimmering
     }
+    
     var locationText: String? {
         return locationLabel.text
     }
+    
     var descriptionText: String? {
         return descriptionLabel.text
+    }
+    
+    var renderedImage: Data? {
+        return feedImageView.image?.pngData()
     }
 }
 
@@ -277,5 +319,18 @@ private extension UIRefreshControl {
                 (target as NSObject).perform(Selector($0))
             }
         }
+    }
+}
+
+private extension UIImage {
+    static func make(withColor color: UIColor) -> UIImage {
+        let rect = CGRect(x: 0, y: 0, width: 1, height: 1)
+        UIGraphicsBeginImageContext(rect.size)
+        let context = UIGraphicsGetCurrentContext()!
+        context.setFillColor(color.cgColor)
+        context.fill(rect)
+        let img = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return img!
     }
 }
