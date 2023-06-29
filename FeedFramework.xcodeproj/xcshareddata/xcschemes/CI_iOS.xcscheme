@@ -14,20 +14,6 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "FABF6D0D2A26761E009FE0E9"
-               BuildableName = "FeedFramework.framework"
-               BlueprintName = "FeedFramework"
-               ReferencedContainer = "container:FeedFramework.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "YES"
-            buildForProfiling = "YES"
-            buildForArchiving = "YES"
-            buildForAnalyzing = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
                BlueprintIdentifier = "FA8948172A4CF26F00240F61"
                BuildableName = "FeedFrameworkiOS.framework"
                BlueprintName = "FeedFrameworkiOS"
@@ -43,7 +29,7 @@
       shouldUseLaunchSchemeArgsEnv = "YES">
       <TestPlans>
          <TestPlanReference
-            reference = "container:../CI_iOS.xctestplan"
+            reference = "container:CI_iOS.xctestplan"
             default = "YES">
          </TestPlanReference>
       </TestPlans>
@@ -68,9 +54,9 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "FABF6D0D2A26761E009FE0E9"
-            BuildableName = "FeedFramework.framework"
-            BlueprintName = "FeedFramework"
+            BlueprintIdentifier = "FA8948172A4CF26F00240F61"
+            BuildableName = "FeedFrameworkiOS.framework"
+            BlueprintName = "FeedFrameworkiOS"
             ReferencedContainer = "container:FeedFramework.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
