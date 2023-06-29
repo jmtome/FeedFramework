@@ -8,15 +8,20 @@
 import UIKit
 import FeedFramework
 
-public protocol FeedImageDataLoader {
-    func loadImageData(from url: URL)
-    func cancelImageDataLoad(from url: URL)
+public protocol FeedImageDataLoaderTask {
+    func cancel()
 }
+public protocol FeedImageDataLoader {
+    func loadImageData(from url: URL) -> FeedImageDataLoaderTask
+}
+//Instead of having two protocol methods, one to load, one to cancel, we have 1 method, load and we make it return a LoaderTask, and we make the
+//implementing clients responsable for tracking this state instead of making our protocols stateful.
 
 final public class FeedViewController: UITableViewController {
     private var feedLoader: FeedLoader?
     private var imageLoader: FeedImageDataLoader?
     private var tableModel = [FeedImage]()
+    private var tasks = [IndexPath: FeedImageDataLoaderTask]()
     
     public convenience init(feedLoader: FeedLoader, imageLoader: FeedImageDataLoader) {
         self.init()
@@ -55,12 +60,13 @@ extension FeedViewController {
         cell.locationContainer.isHidden = (cellModel.location == nil)
         cell.locationLabel.text = cellModel.location
         cell.descriptionLabel.text = cellModel.description
-        imageLoader?.loadImageData(from: cellModel.url)
+        tasks[indexPath] = imageLoader?.loadImageData(from: cellModel.url)
         return cell 
     }
     
     public override func tableView(_ tableView: UITableView, didEndDisplaying cell: UITableViewCell, forRowAt indexPath: IndexPath) {
-        let cellModel = tableModel[indexPath.row]
-        imageLoader?.cancelImageDataLoad(from: cellModel.url)
+        tasks[indexPath]?.cancel()
+        tasks[indexPath] = nil
+        
     }
 }
