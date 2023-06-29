@@ -1,0 +1,45 @@
+{
+  "configurations" : [
+    {
+      "id" : "364B57F0-13AF-4CA6-9C9F-59742A29024F",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "testExecutionOrdering" : "random"
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:FeedFramework.xcodeproj",
+        "identifier" : "FA51C0D42A3A4885002EC274",
+        "name" : "FeedAPIEndToEndTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:FeedFramework.xcodeproj",
+        "identifier" : "FA799A0F2A4B7818004963A6",
+        "name" : "FeedFrameworkCacheIntegrationTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:FeedFramework.xcodeproj",
+        "identifier" : "FABF6D172A26761F009FE0E9",
+        "name" : "FeedFrameworkTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:FeedFramework.xcodeproj",
+        "identifier" : "FA89481E2A4CF27100240F61",
+        "name" : "FeedFrameworkiOSTests"
+      }
+    }
+  ],
+  "version" : 1
+}
