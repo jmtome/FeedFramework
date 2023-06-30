@@ -6,8 +6,6 @@
 //
 
 import UIKit
-import FeedFramework
-
 
 final public class FeedViewController: UITableViewController {
     private var refreshController: FeedRefreshViewController?
