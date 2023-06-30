@@ -17,7 +17,6 @@ final class FeedViewModel {
         self.feedLoader = feedLoader
     }
     
-    
     var onLoadingStateChange: Observer<Bool>?
     var onFeedLoad: Observer<[FeedImage]>?
     
