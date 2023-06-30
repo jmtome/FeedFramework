@@ -7,7 +7,7 @@
 
 import UIKit
 
-final public class FeedViewController: UITableViewController {
+public final class FeedViewController: UITableViewController {
     private var refreshController: FeedRefreshViewController?
     var tableModel = [FeedImageCellController]() {
         didSet {
