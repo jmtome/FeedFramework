@@ -10,14 +10,17 @@ import UIKit
 final class FeedRefreshViewController: NSObject, FeedLoadingView {
     private(set) lazy var view: UIRefreshControl = loadView()
     
-    private let presenter: FeedPresenter
+    private let loadFeed: () -> Void
     
-    init(presenter: FeedPresenter) {
-        self.presenter = presenter
+    //We could also stablesh an indirect communication channel between the view and the presenter. So that the view would not hold a reference to the concrete
+    //presenter type. So instead we can pass a closure, and thus decouple the controller from any other presenter. We inject this closure via the UIComposer
+    
+    init(loadFeed: @escaping () -> Void) {
+        self.loadFeed = loadFeed
     }
         
     @objc func refresh() {
-        presenter.loadFeed()
+        loadFeed()
     }
 
     func display(_ viewModel: FeedLoadingViewModel) {
