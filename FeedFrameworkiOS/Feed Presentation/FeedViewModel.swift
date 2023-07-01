@@ -5,7 +5,6 @@
 //  Created by macbook on 30/06/2023.
 //
 
-import Foundation
 import FeedFramework
 
 final class FeedViewModel {
