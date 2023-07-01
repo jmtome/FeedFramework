@@ -7,20 +7,23 @@
 
 import UIKit
 
+protocol FeedRefreshViewControllerDelegate {
+    func didRequestFeedRefresh()
+}
+
 final class FeedRefreshViewController: NSObject, FeedLoadingView {
     private(set) lazy var view: UIRefreshControl = loadView()
     
-    private let loadFeed: () -> Void
+    private let delegate: FeedRefreshViewControllerDelegate
     
-    //We could also stablesh an indirect communication channel between the view and the presenter. So that the view would not hold a reference to the concrete
-    //presenter type. So instead we can pass a closure, and thus decouple the controller from any other presenter. We inject this closure via the UIComposer
+    //We can also use a delegate and inject it
     
-    init(loadFeed: @escaping () -> Void) {
-        self.loadFeed = loadFeed
+    init(delegate: FeedRefreshViewControllerDelegate) {
+        self.delegate = delegate
     }
         
     @objc func refresh() {
-        loadFeed()
+        delegate.didRequestFeedRefresh()
     }
 
     func display(_ viewModel: FeedLoadingViewModel) {
