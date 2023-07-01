@@ -5,31 +5,24 @@
 //  Created by macbook on 30/06/2023.
 //
 
-import FeedFramework
 import UIKit
+import FeedFramework
 
 public final class FeedUIComposer {
     private init() {}
     
     public static func feedComposedWith(feedLoader: FeedLoader, imageLoader: FeedImageDataLoader) -> FeedViewController {
         let presentationAdapter = FeedLoaderPresentationAdapter(feedLoader: feedLoader)
-        
         let refreshController = FeedRefreshViewController(delegate: presentationAdapter)
         let feedController = FeedViewController(refreshController: refreshController)
         
-        let presenter = FeedPresenter(
+        presentationAdapter.presenter = FeedPresenter(
             feedView: FeedViewAdapter(controller: feedController, imageLoader: imageLoader),
-                                      loadingView: WeakRefVirtualProxy(refreshController))
-
-        presentationAdapter.presenter = presenter
+            loadingView: WeakRefVirtualProxy(refreshController))
+        
         return feedController
     }
 }
-
-//Memory management is a responsability that belongs in the composer not in your components
-//otherwise you'll be leaking infrastructure details into your MVP components
-
-//So we make a WeakRefVirtualProxy that will hold a weak reference to the object instance and pass the messages forward.
 
 private final class WeakRefVirtualProxy<T: AnyObject> {
     private weak var object: T?
@@ -38,9 +31,6 @@ private final class WeakRefVirtualProxy<T: AnyObject> {
         self.object = object
     }
 }
-//so when we set the LoadView we weakify it with the virutal proxy. And for that to work the proxy should also conform to the FeedLoadingView protocol, which
-//we can do in an extension of the VirtualProxy, we constrain the conformance where the object type must also implement the FeedLoadingView protocol, this way we
-//can safely forward the messages to the weak instance with compile check guarantees
 
 extension WeakRefVirtualProxy: FeedLoadingView where T: FeedLoadingView {
     func display(_ viewModel: FeedLoadingViewModel) {
@@ -48,25 +38,34 @@ extension WeakRefVirtualProxy: FeedLoadingView where T: FeedLoadingView {
     }
 }
 
+extension WeakRefVirtualProxy: FeedImageView where T: FeedImageView, T.Image == UIImage {
+    func display(_ model: FeedImageViewModel<UIImage>) {
+        object?.display(model)
+    }
+}
+
 private final class FeedViewAdapter: FeedView {
     private weak var controller: FeedViewController?
     private let imageLoader: FeedImageDataLoader
     
-    init(controller: FeedViewController?, imageLoader: FeedImageDataLoader) {
+    init(controller: FeedViewController, imageLoader: FeedImageDataLoader) {
         self.controller = controller
         self.imageLoader = imageLoader
     }
     
     func display(_ viewModel: FeedViewModel) {
         controller?.tableModel = viewModel.feed.map { model in
-            FeedImageCellController(viewModel: FeedImageViewModel(model: model, imageLoader: imageLoader, imageTransformer: UIImage.init))
+            let adapter = FeedImageDataLoaderPresentationAdapter<WeakRefVirtualProxy<FeedImageCellController>, UIImage>(model: model, imageLoader: imageLoader)
+            let view = FeedImageCellController(delegate: adapter)
+            
+            adapter.presenter = FeedImagePresenter(
+                view: WeakRefVirtualProxy(view),
+                imageTransformer: UIImage.init)
+            
+            return view
         }
     }
 }
-
-//we have a circular dependency in our presentation logic, however
-//We dont want to leak composition details in our components, but since the presentation adapter is part of the composition layer, its a good candidate for property
-//injection, in this case we are not leaking composition details into the adapter, since the adapter is already a composition component
 
 private final class FeedLoaderPresentationAdapter: FeedRefreshViewControllerDelegate {
     private let feedLoader: FeedLoader
@@ -81,13 +80,44 @@ private final class FeedLoaderPresentationAdapter: FeedRefreshViewControllerDele
         
         feedLoader.load { [weak self] result in
             switch result {
-            case .success(let feed):
+            case let .success(feed):
                 self?.presenter?.didFinishLoadingFeed(with: feed)
                 
-            case .failure(let error):
+            case let .failure(error):
                 self?.presenter?.didFinishLoadingFeed(with: error)
             }
         }
     }
+}
+
+private final class FeedImageDataLoaderPresentationAdapter<View: FeedImageView, Image>: FeedImageCellControllerDelegate where View.Image == Image {
+    private let model: FeedImage
+    private let imageLoader: FeedImageDataLoader
+    private var task: FeedImageDataLoaderTask?
     
+    var presenter: FeedImagePresenter<View, Image>?
+    
+    init(model: FeedImage, imageLoader: FeedImageDataLoader) {
+        self.model = model
+        self.imageLoader = imageLoader
+    }
+    
+    func didRequestImage() {
+        presenter?.didStartLoadingImageData(for: model)
+        
+        let model = self.model
+        task = imageLoader.loadImageData(from: model.url) { [weak self] result in
+            switch result {
+            case let .success(data):
+                self?.presenter?.didFinishLoadingImageData(with: data, for: model)
+                
+            case let .failure(error):
+                self?.presenter?.didFinishLoadingImageData(with: error, for: model)
+            }
+        }
+    }
+    
+    func didCancelImageRequest() {
+        task?.cancel()
+    }
 }
