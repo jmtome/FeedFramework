@@ -25,7 +25,7 @@
                             <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                         </view>
                         <prototypes>
-                            <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" preservesSuperviewLayoutMargins="YES" selectionStyle="none" indentationWidth="10" reuseIdentifier="FeedImageCell" rowHeight="580" id="dcV-vl-Ave" customClass="FeedImageCell" customModule="Prototype" customModuleProvider="target">
+                            <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" preservesSuperviewLayoutMargins="YES" selectionStyle="none" indentationWidth="10" reuseIdentifier="FeedImageCell" rowHeight="580" id="dcV-vl-Ave" customClass="FeedImageCell" customModule="FeedFrameworkiOS">
                                 <rect key="frame" x="0.0" y="66" width="393" height="580"/>
                                 <autoresizingMask key="autoresizingMask"/>
                                 <tableViewCellContentView key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" preservesSuperviewLayoutMargins="YES" insetsLayoutMarginsFromSafeArea="NO" tableViewCell="dcV-vl-Ave" id="B4i-gv-92Y">
@@ -78,6 +78,9 @@ Location</string>
                                                                 <fontDescription key="titleFontDescription" type="system" pointSize="60"/>
                                                                 <color key="baseForegroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                                             </buttonConfiguration>
+                                                            <connections>
+                                                                <action selector="retryButtonTapped" destination="dcV-vl-Ave" eventType="touchUpInside" id="Vdh-em-Fsf"/>
+                                                            </connections>
                                                         </button>
                                                     </subviews>
                                                     <color key="backgroundColor" red="0.89019607840000003" green="0.89019607840000003" blue="0.89019607840000003" alpha="1" colorSpace="calibratedRGB"/>
@@ -119,6 +122,14 @@ Location</string>
                                         <constraint firstItem="FFW-Oy-qom" firstAttribute="leading" secondItem="B4i-gv-92Y" secondAttribute="leadingMargin" id="QGm-28-29h"/>
                                     </constraints>
                                 </tableViewCellContentView>
+                                <connections>
+                                    <outlet property="descriptionLabel" destination="u2M-Le-v7b" id="n7Y-0b-8ws"/>
+                                    <outlet property="feedImageContainer" destination="zn0-bZ-GQ9" id="9e5-Z4-q42"/>
+                                    <outlet property="feedImageRetryButton" destination="w7e-VI-zSx" id="pcw-YT-vgL"/>
+                                    <outlet property="feedImageView" destination="EFc-u0-3be" id="QdS-wu-O7j"/>
+                                    <outlet property="locationContainer" destination="koQ-HI-iKs" id="evl-px-MhA"/>
+                                    <outlet property="locationLabel" destination="BES-N1-rRA" id="hmI-5L-TSV"/>
+                                </connections>
                             </tableViewCell>
                         </prototypes>
                         <connections>
