@@ -12,18 +12,20 @@ protocol FeedRefreshViewControllerDelegate {
 }
 
 final class FeedRefreshViewController: NSObject, FeedLoadingView {
-    private(set) lazy var view: UIRefreshControl = loadView()
-    
-    private let delegate: FeedRefreshViewControllerDelegate
+    //Implemented by Storyboard
+//    private(set) lazy var view: UIRefreshControl = loadView()
+    @IBOutlet private var view: UIRefreshControl!
+
+    var delegate: FeedRefreshViewControllerDelegate?
     
     //We can also use a delegate and inject it
     
-    init(delegate: FeedRefreshViewControllerDelegate) {
-        self.delegate = delegate
-    }
+//    init(delegate: FeedRefreshViewControllerDelegate) {
+//        self.delegate = delegate
+//    }
         
-    @objc func refresh() {
-        delegate.didRequestFeedRefresh()
+    @IBAction func refresh() {
+        delegate?.didRequestFeedRefresh()
     }
 
     func display(_ viewModel: FeedLoadingViewModel) {
@@ -34,9 +36,10 @@ final class FeedRefreshViewController: NSObject, FeedLoadingView {
         }
     }
     
-    private func loadView() -> UIRefreshControl {
-        let view = UIRefreshControl()
-        view.addTarget(self, action: #selector(refresh), for: .valueChanged)
-        return view
-    }
+    //Implemented by Storyboard
+//    private func loadView() -> UIRefreshControl {
+//        let view = UIRefreshControl()
+//        view.addTarget(self, action: #selector(refresh), for: .valueChanged)
+//        return view
+//    }
 }
