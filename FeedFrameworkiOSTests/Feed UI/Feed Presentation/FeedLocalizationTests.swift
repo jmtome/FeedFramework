@@ -6,7 +6,7 @@
 //
 
 import XCTest
-@testable import FeedFrameworkiOS
+import FeedFramework
 
 final class FeedLocalizationTests: XCTestCase {
     

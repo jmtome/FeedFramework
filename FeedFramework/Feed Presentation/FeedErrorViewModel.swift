@@ -1,13 +1,12 @@
 //
 //  FeedErrorViewModel.swift
-//  FeedFrameworkiOS
+//  FeedFramework
 //
 //  Created by macbook on 03/07/2023.
 //
 
-
-struct FeedErrorViewModel {
-    let message: String?
+public struct FeedErrorViewModel {
+    public let message: String?
 
     static var noError: FeedErrorViewModel {
         return FeedErrorViewModel(message: nil)
