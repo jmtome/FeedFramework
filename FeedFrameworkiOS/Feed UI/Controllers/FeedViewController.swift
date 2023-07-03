@@ -87,3 +87,12 @@ extension FeedViewController: FeedLoadingView {
     }
 }
 
+//MARK: - FeedErrorView Conformance
+extension FeedViewController: FeedErrorView {
+    func display(_ viewModel: FeedErrorViewModel) {
+        errorView.message = viewModel.message
+    }
+    
+    
+}
+
