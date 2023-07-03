@@ -22,7 +22,7 @@ public final class FeedViewController: UITableViewController {
             self.tableView.reloadData()
         }
     }
-
+    
     public override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -63,7 +63,7 @@ extension FeedViewController {
     private func cellController(forRowAt indexPath: IndexPath) -> FeedImageCellController {
         return tableModel[indexPath.row]
     }
-
+    
     private func cancelCellControllerLoad(forRowAt indexPath: IndexPath) {
         cellController(forRowAt: indexPath).cancelLoad()
     }
@@ -75,11 +75,7 @@ extension FeedViewController {
 //MARK: - FeedLoadingView Conformance
 extension FeedViewController: FeedLoadingView {
     func display(_ viewModel: FeedLoadingViewModel) {
-        if viewModel.isLoading {
-            refreshControl?.beginRefreshing()
-        } else {
-            refreshControl?.endRefreshing()
-        }
+        refreshControl?.update(isRefreshing: viewModel.isLoading)
     }
 }
 
@@ -88,7 +84,5 @@ extension FeedViewController: FeedErrorView {
     func display(_ viewModel: FeedErrorViewModel) {
         errorView?.message = viewModel.message
     }
-    
-    
 }
 
