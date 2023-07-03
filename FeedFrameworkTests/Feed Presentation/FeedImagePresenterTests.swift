@@ -26,30 +26,31 @@ protocol FeedImageView {
 
 class FeedImagePresenter {
     private let view: FeedImageView
-    
+
     init(view: FeedImageView) {
         self.view = view
     }
     
     func didStartLoadingImageData(for model: FeedImage) {
-        view.display(FeedImageViewModel(description: model.description,
-                                        location: model.location,
-                                        image: nil,
-                                        isLoading: true,
-                                        shouldRetry: false))
+        view.display(FeedImageViewModel(
+            description: model.description,
+            location: model.location,
+            image: nil,
+            isLoading: true,
+            shouldRetry: false))
     }
 }
 
-final class FeedImagePresenterTests: XCTestCase {
+class FeedImagePresenterTests: XCTestCase {
     
     func test_init_doesNotSendMessagesToView() {
-        let (_, view) = makeSut()
+        let (_, view) = makeSUT()
         
         XCTAssertTrue(view.messages.isEmpty, "Expected no view messages")
     }
     
     func test_didStartLoadingImageData_displaysLoadingImage() {
-        let (sut, view) = makeSut()
+        let (sut, view) = makeSUT()
         let image = uniqueImage()
         
         sut.didStartLoadingImageData(for: image)
@@ -58,16 +59,14 @@ final class FeedImagePresenterTests: XCTestCase {
         XCTAssertEqual(view.messages.count, 1)
         XCTAssertEqual(message?.description, image.description)
         XCTAssertEqual(message?.location, image.location)
-        XCTAssertNil(message?.image)
         XCTAssertEqual(message?.isLoading, true)
         XCTAssertEqual(message?.shouldRetry, false)
-        
+        XCTAssertNil(message?.image)
     }
-    
     
     // MARK: - Helpers
     
-    private func makeSut(file: StaticString = #file, line: UInt = #line) -> (sut: FeedImagePresenter, view: ViewSpy) {
+    private func makeSUT(file: StaticString = #file, line: UInt = #line) -> (sut: FeedImagePresenter, view: ViewSpy) {
         let view = ViewSpy()
         let sut = FeedImagePresenter(view: view)
         trackForMemoryLeaks(view, file: file, line: line)
@@ -76,11 +75,11 @@ final class FeedImagePresenterTests: XCTestCase {
     }
     
     private class ViewSpy: FeedImageView {
+        private(set) var messages = [FeedImageViewModel]()
         
-        var messages = [FeedImageViewModel]()
-    
         func display(_ model: FeedImageViewModel) {
             messages.append(model)
         }
     }
+
 }
