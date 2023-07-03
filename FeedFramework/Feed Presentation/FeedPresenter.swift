@@ -1,40 +1,56 @@
 //
 //  FeedPresenter.swift
-//  FeedFrameworkiOS
+//  FeedFramework
 //
-//  Created by macbook on 01/07/2023.
+//  Created by macbook on 03/07/2023.
 //
 
 import Foundation
-import FeedFramework
 
-protocol FeedLoadingView {
-    func display(_ viewModel: FeedLoadingViewModel)
+public struct FeedViewModel {
+    public let feed: [FeedImage]
 }
 
-protocol FeedView {
+public protocol FeedView {
     func display(_ viewModel: FeedViewModel)
 }
 
-protocol FeedErrorView {
+public struct FeedLoadingViewModel {
+    public let isLoading: Bool
+}
+
+public protocol FeedLoadingView {
+    func display(_ viewModel: FeedLoadingViewModel)
+}
+
+public struct FeedErrorViewModel {
+    public let message: String?
+
+    static var noError: FeedErrorViewModel {
+        return FeedErrorViewModel(message: nil)
+    }
+
+    static func error(message: String) -> FeedErrorViewModel {
+        return FeedErrorViewModel(message: message)
+    }
+}
+
+public protocol FeedErrorView {
     func display(_ viewModel: FeedErrorViewModel)
 }
 
-//In MVP a presenter must have a reference to its view protocol, our views are optional, but ideally they shouldnt be optional, we must have views.
-// to improve the design a constructor is better to guarantee we always have references to our views
-
-final class FeedPresenter {
+public final class FeedPresenter {
     private let feedView: FeedView
     private let loadingView: FeedLoadingView
     private let errorView: FeedErrorView
     
-    init(feedView: FeedView, loadingView: FeedLoadingView, errorView: FeedErrorView) {
+    public init(feedView: FeedView, loadingView: FeedLoadingView, errorView: FeedErrorView) {
         self.feedView = feedView
         self.loadingView = loadingView
         self.errorView = errorView
     }
     
-    static var title: String {
+    public static var title: String {
         return NSLocalizedString("FEED_VIEW_TITLE", tableName: "Feed", bundle: Bundle(for: FeedPresenter.self), comment: "Title for the feed view")
     }
 
@@ -45,19 +61,18 @@ final class FeedPresenter {
                                  comment: "Error message displayed when we can't load the image feed from the server")
     }
     
-    func didStartLoadingFeed() {
+    public func didStartLoadingFeed() {
         errorView.display(.noError)
         loadingView.display(FeedLoadingViewModel(isLoading: true))
     }
     
-    func didFinishLoadingFeed(with feed: [FeedImage]) {
+    public func didFinishLoadingFeed(with feed: [FeedImage]) {
         feedView.display(FeedViewModel(feed: feed))
         loadingView.display(FeedLoadingViewModel(isLoading: false))
     }
     
-    func didFinishLoadingFeed(with error: Error) {
+    public func didFinishLoadingFeed(with error: Error) {
         errorView.display(.error(message: feedLoadError))
         loadingView.display(FeedLoadingViewModel(isLoading: false))
     }
 }
-
