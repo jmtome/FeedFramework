@@ -19,7 +19,7 @@ public final class FeedViewController: UITableViewController {
     
     var delegate: FeedViewControllerDelegate?
     
-    public let errorView = ErrorView()
+    @IBOutlet private(set) public var errorView: ErrorView?
     
     var tableModel = [FeedImageCellController]() {
         didSet {
@@ -90,7 +90,7 @@ extension FeedViewController: FeedLoadingView {
 //MARK: - FeedErrorView Conformance
 extension FeedViewController: FeedErrorView {
     func display(_ viewModel: FeedErrorViewModel) {
-        errorView.message = viewModel.message
+        errorView?.message = viewModel.message
     }
     
     
