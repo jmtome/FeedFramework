@@ -1,0 +1,34 @@
+{
+  "configurations" : [
+    {
+      "id" : "28A8EA5E-8A00-411F-AFEB-0A7FD3D33E7C",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : {
+      "targets" : [
+        {
+          "containerPath" : "container:FeedFramework.xcodeproj",
+          "identifier" : "FA8948172A4CF26F00240F61",
+          "name" : "FeedFrameworkiOS"
+        }
+      ]
+    },
+    "testExecutionOrdering" : "random",
+    "threadSanitizerEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:FeedFramework.xcodeproj",
+        "identifier" : "FA89481E2A4CF27100240F61",
+        "name" : "FeedFrameworkiOSTests"
+      }
+    }
+  ],
+  "version" : 1
+}

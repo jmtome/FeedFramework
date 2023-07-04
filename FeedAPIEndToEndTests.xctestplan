@@ -1,0 +1,25 @@
+{
+  "configurations" : [
+    {
+      "id" : "D00A977B-E80B-4246-A10D-E32CA2FC1718",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "testExecutionOrdering" : "random",
+    "threadSanitizerEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:FeedFramework.xcodeproj",
+        "identifier" : "FA51C0D42A3A4885002EC274",
+        "name" : "FeedAPIEndToEndTests"
+      }
+    }
+  ],
+  "version" : 1
+}

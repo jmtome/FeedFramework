@@ -14,9 +14,9 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "FABF6D0D2A26761E009FE0E9"
-               BuildableName = "FeedFramework.framework"
-               BlueprintName = "FeedFramework"
+               BlueprintIdentifier = "FA8948172A4CF26F00240F61"
+               BuildableName = "FeedFrameworkiOS.framework"
+               BlueprintName = "FeedFrameworkiOS"
                ReferencedContainer = "container:FeedFramework.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -29,10 +29,23 @@
       shouldUseLaunchSchemeArgsEnv = "YES">
       <TestPlans>
          <TestPlanReference
-            reference = "container:CI.xctestplan"
+            reference = "container:FeedFrameworkiOS.xctestplan"
             default = "YES">
          </TestPlanReference>
       </TestPlans>
+      <Testables>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "FA89481E2A4CF27100240F61"
+               BuildableName = "FeedFrameworkiOSTests.xctest"
+               BlueprintName = "FeedFrameworkiOSTests"
+               ReferencedContainer = "container:FeedFramework.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+      </Testables>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"
@@ -54,9 +67,9 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "FABF6D0D2A26761E009FE0E9"
-            BuildableName = "FeedFramework.framework"
-            BlueprintName = "FeedFramework"
+            BlueprintIdentifier = "FA8948172A4CF26F00240F61"
+            BuildableName = "FeedFrameworkiOS.framework"
+            BlueprintName = "FeedFrameworkiOS"
             ReferencedContainer = "container:FeedFramework.xcodeproj">
          </BuildableReference>
       </MacroExpansion>

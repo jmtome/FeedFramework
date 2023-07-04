@@ -18,11 +18,11 @@
         }
       ]
     },
-    "testExecutionOrdering" : "random"
+    "testExecutionOrdering" : "random",
+    "threadSanitizerEnabled" : true
   },
   "testTargets" : [
     {
-      "parallelizable" : true,
       "target" : {
         "containerPath" : "container:FeedFramework.xcodeproj",
         "identifier" : "FA799A0F2A4B7818004963A6",
