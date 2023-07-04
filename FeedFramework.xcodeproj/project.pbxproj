@@ -498,10 +498,10 @@
 			isa = PBXGroup;
 			children = (
 				FA7999E02A4A952D004963A6 /* CoreDataHelpers.swift */,
+				FA7999E52A4A952D004963A6 /* CoreDataFeedStore.swift */,
 				FA7999F22A4A9712004963A6 /* FeedStore.xcdatamodeld */,
 				FA7999E12A4A952D004963A6 /* ManagedFeedImage.swift */,
 				FA7999E42A4A952D004963A6 /* ManagedCache.swift */,
-				FA7999E52A4A952D004963A6 /* CoreDataFeedStore.swift */,
 				FA6ED27C2A54967100F23C81 /* CoreDataFeedStore+FeedStore.swift */,
 				FA6ED27A2A548E2100F23C81 /* CoreDataFeedStore+FeedImageDataLoader.swift */,
 			);
