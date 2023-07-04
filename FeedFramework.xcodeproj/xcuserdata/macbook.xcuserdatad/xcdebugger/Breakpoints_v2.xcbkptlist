@@ -7,22 +7,6 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "59646E59-CC52-421A-A804-E0F61D1442D4"
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "FeedFrameworkTests/Feed API/URLSessionHTTPClientTests.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "204"
-            endingLineNumber = "204"
-            landmarkName = "startLoading()"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
             uuid = "5D240609-343F-4227-A4B1-21A4E9694D5E"
             shouldBeEnabled = "Yes"
             ignoreCount = "0"
@@ -111,22 +95,6 @@
             startingLineNumber = "59"
             endingLineNumber = "59"
             landmarkName = "didFinishLoadingFeed(with:)"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "D3293179-2487-40FB-AA58-63F3475C1D94"
-            shouldBeEnabled = "Yes"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "FeedFrameworkTests/Feed API/LoadFeedFromRemoteUseCaseTests.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "100"
-            endingLineNumber = "100"
-            landmarkName = "test_load_deliversItemsOn200HTTPResponseWithJSONItems()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
