@@ -75,8 +75,7 @@ final class FeedFrameworkCacheIntegrationTests: XCTestCase {
             store = CodableFeedStore(storeURL: storeURL)
         } else {
             //Test for CoreData
-            let storeBundle = Bundle(for: CoreDataFeedStore.self)
-            store = try! CoreDataFeedStore(storeURL: storeURL, bundle: storeBundle)
+            store = try! CoreDataFeedStore(storeURL: storeURL)
         }
         
         let sut = LocalFeedLoader(store: store, currentDate: Date.init)
