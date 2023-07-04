@@ -65,6 +65,36 @@
                   endingLineNumber = "141"
                   offsetFromSymbolStart = "186">
                </Location>
+               <Location
+                  uuid = "5D240609-343F-4227-A4B1-21A4E9694D5E - a9c169bb8f91f1ef"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "closure #1 (Swift.Result&lt;(), Swift.Error&gt;) -&gt; () in FeedFrameworkTests.FeedStoreSpecs&lt; where &#x3c4;_0_0: __C.XCTestCase&gt;.deleteCache(from: FeedFramework.FeedStore) -&gt; Swift.Optional&lt;Swift.Error&gt;"
+                  moduleName = "FeedFrameworkTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/macbook/Documents/FeedFramework/FeedFrameworkTests/Feed%20Cache/FeedStoreSpecs/XCTestCase+FeedStoreSpecs.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "141"
+                  endingLineNumber = "141"
+                  offsetFromSymbolStart = "168">
+               </Location>
+               <Location
+                  uuid = "5D240609-343F-4227-A4B1-21A4E9694D5E - a9c169bb8f91f1ef"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "closure #1 (Swift.Result&lt;(), Swift.Error&gt;) -&gt; () in FeedFrameworkTests.FeedStoreSpecs&lt; where &#x3c4;_0_0: __C.XCTestCase&gt;.deleteCache(from: FeedFramework.FeedStore) -&gt; Swift.Optional&lt;Swift.Error&gt;"
+                  moduleName = "FeedFrameworkTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/macbook/Documents/FeedFramework/FeedFrameworkTests/Feed%20Cache/FeedStoreSpecs/XCTestCase+FeedStoreSpecs.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "141"
+                  endingLineNumber = "141"
+                  offsetFromSymbolStart = "197">
+               </Location>
             </Locations>
          </BreakpointContent>
       </BreakpointProxy>
@@ -81,6 +111,22 @@
             startingLineNumber = "59"
             endingLineNumber = "59"
             landmarkName = "didFinishLoadingFeed(with:)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "D3293179-2487-40FB-AA58-63F3475C1D94"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "FeedFrameworkTests/Feed API/LoadFeedFromRemoteUseCaseTests.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "100"
+            endingLineNumber = "100"
+            landmarkName = "test_load_deliversItemsOn200HTTPResponseWithJSONItems()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
