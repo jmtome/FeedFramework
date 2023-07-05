@@ -22,6 +22,7 @@
 		FAF02F0E2A54E78400F4B481 /* FeedLoaderWithFallbackCompositeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAF02F0D2A54E78400F4B481 /* FeedLoaderWithFallbackCompositeTests.swift */; };
 		FAF02F112A54F1E200F4B481 /* FeedLoaderWithFallbackComposite.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAF02F102A54F1E200F4B481 /* FeedLoaderWithFallbackComposite.swift */; };
 		FAF02F132A54F28000F4B481 /* FeedImageDataLoaderWithFallbackCompositeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAF02F122A54F28000F4B481 /* FeedImageDataLoaderWithFallbackCompositeTests.swift */; };
+		FAF02F152A54FF0C00F4B481 /* FeedImageDataLoaderWithFallbackComposite.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAF02F142A54FF0C00F4B481 /* FeedImageDataLoaderWithFallbackComposite.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -75,6 +76,7 @@
 		FAF02F0F2A54E7A600F4B481 /* FeedApp.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = FeedApp.xctestplan; sourceTree = "<group>"; };
 		FAF02F102A54F1E200F4B481 /* FeedLoaderWithFallbackComposite.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedLoaderWithFallbackComposite.swift; sourceTree = "<group>"; };
 		FAF02F122A54F28000F4B481 /* FeedImageDataLoaderWithFallbackCompositeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedImageDataLoaderWithFallbackCompositeTests.swift; sourceTree = "<group>"; };
+		FAF02F142A54FF0C00F4B481 /* FeedImageDataLoaderWithFallbackComposite.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedImageDataLoaderWithFallbackComposite.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -137,6 +139,7 @@
 				FA7BD3FB2A54E70200B71476 /* LaunchScreen.storyboard */,
 				FA7BD3FE2A54E70200B71476 /* Info.plist */,
 				FAF02F102A54F1E200F4B481 /* FeedLoaderWithFallbackComposite.swift */,
+				FAF02F142A54FF0C00F4B481 /* FeedImageDataLoaderWithFallbackComposite.swift */,
 			);
 			path = FeedApp;
 			sourceTree = "<group>";
@@ -305,6 +308,7 @@
 				FA7BD3F12A54E70000B71476 /* AppDelegate.swift in Sources */,
 				FAF02F112A54F1E200F4B481 /* FeedLoaderWithFallbackComposite.swift in Sources */,
 				FA7BD3F32A54E70000B71476 /* SceneDelegate.swift in Sources */,
+				FAF02F152A54FF0C00F4B481 /* FeedImageDataLoaderWithFallbackComposite.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
