@@ -106,6 +106,7 @@
 		FABF6D3E2A284842009FE0E9 /* URLSessionHTTPClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FABF6D3D2A284842009FE0E9 /* URLSessionHTTPClientTests.swift */; };
 		FAEA9EE72A4D1A3C00CE4788 /* FeedUIIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAEA9EE62A4D1A3C00CE4788 /* FeedUIIntegrationTests.swift */; };
 		FAF02F222A55117E00F4B481 /* FeedCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAF02F212A55117E00F4B481 /* FeedCache.swift */; };
+		FAF02F2C2A5516D700F4B481 /* FeedImageDataCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAF02F2B2A5516D700F4B481 /* FeedImageDataCache.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -265,6 +266,7 @@
 		FAEA9EE52A4D1A3B00CE4788 /* FeedFrameworkiOSTests-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "FeedFrameworkiOSTests-Bridging-Header.h"; sourceTree = "<group>"; };
 		FAEA9EE62A4D1A3C00CE4788 /* FeedUIIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedUIIntegrationTests.swift; sourceTree = "<group>"; };
 		FAF02F212A55117E00F4B481 /* FeedCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedCache.swift; sourceTree = "<group>"; };
+		FAF02F2B2A5516D700F4B481 /* FeedImageDataCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedImageDataCache.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -636,6 +638,7 @@
 				FABF6D2B2A2676F2009FE0E9 /* FeedLoader.swift */,
 				FA2D2CE82A4F3E9B00FA4E38 /* FeedImageDataLoader.swift */,
 				FAF02F212A55117E00F4B481 /* FeedCache.swift */,
+				FAF02F2B2A5516D700F4B481 /* FeedImageDataCache.swift */,
 			);
 			path = "Feed Feature";
 			sourceTree = "<group>";
@@ -993,6 +996,7 @@
 				FA3C4BBF2A536E5B0091C771 /* FeedPresenter.swift in Sources */,
 				FA009E8B2A47747B00779067 /* FeedCachePolicy.swift in Sources */,
 				FABF6D292A26764F009FE0E9 /* FeedImage.swift in Sources */,
+				FAF02F2C2A5516D700F4B481 /* FeedImageDataCache.swift in Sources */,
 				FA6ED26E2A547A0200F23C81 /* LocalFeedImageDataLoader.swift in Sources */,
 				FA1AD80B2A43EE8F00B8AB35 /* LocalFeedLoader.swift in Sources */,
 				FAB9489A2A546F57008F2804 /* HTTPURLResponse+StatusCode.swift in Sources */,
