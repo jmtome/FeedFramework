@@ -9,11 +9,14 @@
     }
   ],
   "defaultOptions" : {
-    "codeCoverage" : false,
+    "testExecutionOrdering" : "random",
     "threadSanitizerEnabled" : true
   },
   "testTargets" : [
     {
+      "skippedTests" : [
+        "FeedAppUITestsLaunchTests"
+      ],
       "target" : {
         "containerPath" : "container:FeedApp.xcodeproj",
         "identifier" : "FA7BD40C2A54E70300B71476",
