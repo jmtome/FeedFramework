@@ -7,8 +7,8 @@
 
 import UIKit
 import FeedFramework
+import FeedFrameworkiOS
 
-//
 public final class FeedUIComposer {
     private init() {}
     

@@ -49,8 +49,9 @@
       }
     },
     {
+      "enabled" : false,
       "target" : {
-        "containerPath" : "container:FeedApp.xcodeproj",
+        "containerPath" : "container:FeedApp\/FeedApp.xcodeproj",
         "identifier" : "FA7BD40C2A54E70300B71476",
         "name" : "FeedAppUITests"
       }

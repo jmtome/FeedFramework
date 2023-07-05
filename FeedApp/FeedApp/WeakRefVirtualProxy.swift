@@ -7,6 +7,7 @@
 
 import UIKit
 import FeedFramework
+import FeedFrameworkiOS
 
 final class WeakRefVirtualProxy<T: AnyObject> {
     private weak var object: T?
