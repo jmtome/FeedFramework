@@ -23,6 +23,7 @@ final class FeedImageCellController: FeedImageView {
     
     func view(in tableView: UITableView) -> UITableViewCell {
         cell = tableView.dequeueReusableCell()
+        cell?.setAccessibilityIdentifiers()
         delegate.didRequestImage()
         return cell!
     }
