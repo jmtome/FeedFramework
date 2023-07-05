@@ -25,6 +25,7 @@
 		FAF02F152A54FF0C00F4B481 /* FeedImageDataLoaderWithFallbackComposite.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAF02F142A54FF0C00F4B481 /* FeedImageDataLoaderWithFallbackComposite.swift */; };
 		FAF02F182A54FF8500F4B481 /* XCTestCase+MemoryLeakTracking.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAF02F172A54FF8500F4B481 /* XCTestCase+MemoryLeakTracking.swift */; };
 		FAF02F1A2A55000400F4B481 /* SharedTestHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAF02F192A55000400F4B481 /* SharedTestHelpers.swift */; };
+		FAF02F1C2A5507C800F4B481 /* FeedLoaderCacheDecoratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAF02F1B2A5507C800F4B481 /* FeedLoaderCacheDecoratorTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -81,6 +82,7 @@
 		FAF02F142A54FF0C00F4B481 /* FeedImageDataLoaderWithFallbackComposite.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedImageDataLoaderWithFallbackComposite.swift; sourceTree = "<group>"; };
 		FAF02F172A54FF8500F4B481 /* XCTestCase+MemoryLeakTracking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "XCTestCase+MemoryLeakTracking.swift"; sourceTree = "<group>"; };
 		FAF02F192A55000400F4B481 /* SharedTestHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedTestHelpers.swift; sourceTree = "<group>"; };
+		FAF02F1B2A5507C800F4B481 /* FeedLoaderCacheDecoratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedLoaderCacheDecoratorTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -154,6 +156,7 @@
 				FAF02F162A54FF7100F4B481 /* Helpers */,
 				FAF02F0D2A54E78400F4B481 /* FeedLoaderWithFallbackCompositeTests.swift */,
 				FAF02F122A54F28000F4B481 /* FeedImageDataLoaderWithFallbackCompositeTests.swift */,
+				FAF02F1B2A5507C800F4B481 /* FeedLoaderCacheDecoratorTests.swift */,
 			);
 			path = FeedAppTests;
 			sourceTree = "<group>";
@@ -331,6 +334,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				FAF02F1A2A55000400F4B481 /* SharedTestHelpers.swift in Sources */,
+				FAF02F1C2A5507C800F4B481 /* FeedLoaderCacheDecoratorTests.swift in Sources */,
 				FAF02F132A54F28000F4B481 /* FeedImageDataLoaderWithFallbackCompositeTests.swift in Sources */,
 				FAF02F0E2A54E78400F4B481 /* FeedLoaderWithFallbackCompositeTests.swift in Sources */,
 				FAF02F182A54FF8500F4B481 /* XCTestCase+MemoryLeakTracking.swift in Sources */,
