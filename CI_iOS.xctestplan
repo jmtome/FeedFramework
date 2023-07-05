@@ -9,7 +9,7 @@
     }
   ],
   "defaultOptions" : {
-    "codeCoverage" : false,
+    "testExecutionOrdering" : "random",
     "threadSanitizerEnabled" : true
   },
   "testTargets" : [
@@ -39,6 +39,13 @@
         "containerPath" : "container:FeedFramework.xcodeproj",
         "identifier" : "FA89481E2A4CF27100240F61",
         "name" : "FeedFrameworkiOSTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:FeedApp\/FeedApp.xcodeproj",
+        "identifier" : "FA7BD4022A54E70300B71476",
+        "name" : "FeedAppTests"
       }
     }
   ],
