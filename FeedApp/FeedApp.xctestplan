@@ -1,0 +1,39 @@
+{
+  "configurations" : [
+    {
+      "id" : "5E97E630-A854-4A2D-A4C2-1B8985F4CFE4",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:FeedApp.xcodeproj",
+      "identifier" : "FA7BD3EC2A54E70000B71476",
+      "name" : "FeedApp"
+    },
+    "testExecutionOrdering" : "random",
+    "threadSanitizerEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:FeedApp.xcodeproj",
+        "identifier" : "FA7BD4022A54E70300B71476",
+        "name" : "FeedAppTests"
+      }
+    },
+    {
+      "enabled" : false,
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:FeedApp.xcodeproj",
+        "identifier" : "FA7BD40C2A54E70300B71476",
+        "name" : "FeedAppUITests"
+      }
+    }
+  ],
+  "version" : 1
+}
