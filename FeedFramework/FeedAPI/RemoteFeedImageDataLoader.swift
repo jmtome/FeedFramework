@@ -28,6 +28,7 @@ public final class RemoteFeedImageDataLoader: FeedImageDataLoader {
             self.completion = completion
         }
 
+        #warning("There is a data race in the completion?(result)")
         func complete(with result: FeedImageDataLoader.Result) {
             completion?(result)
         }
