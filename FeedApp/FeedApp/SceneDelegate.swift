@@ -22,9 +22,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let _ = (scene as? UIWindowScene) else { return }
         
         
-        let remoteURL = URL(string: "h ttps://static1.squarespace.com/static/5891c5b8d1758ec68ef5dbc2/t/5d1c78f21e661a0001ce7cfd/1562147059075/feed-case-study-v1-api-feed.json")!
+//        let remoteURL = URL(string: "h ttps://static1.squarespace.com/static/5891c5b8d1758ec68ef5dbc2/t/5d1c78f21e661a0001ce7cfd/1562147059075/feed-case-study-v1-api-feed.json")!
 //
 //        let remoteURL = URL(string: "https://static1.squarespace.com/static/5891c5b8d1758ec68ef5dbc2/t/5dab38c37d6ae13037e3cdaa/1571502294594/essential_app_feed.json")!
+        let remoteURL = URL(string: "https://rv8y4.wiremockapi.cloud/thing/8")!
         let session = URLSession(configuration: .ephemeral)
         let remoteClient = URLSessionHTTPClient(session: session)
         let remoteFeedLoader = RemoteFeedLoader(url: remoteURL, client: remoteClient)
