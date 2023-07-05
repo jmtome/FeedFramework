@@ -7,6 +7,9 @@
 
 import XCTest
 
+
+//MARK: - Deprecated in favor of faster and more precise integration tests
+
 final class FeedAppUITests: XCTestCase {
     
     func test_onLaunch_displaysRemoteFeedWhenCustomerHasConnectivity() {
