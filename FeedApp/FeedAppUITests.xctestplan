@@ -1,0 +1,25 @@
+{
+  "configurations" : [
+    {
+      "id" : "FD091187-2BBB-46D1-95FB-918D953DEED5",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : false,
+    "threadSanitizerEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:FeedApp.xcodeproj",
+        "identifier" : "FA7BD40C2A54E70300B71476",
+        "name" : "FeedAppUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

@@ -47,6 +47,13 @@
         "identifier" : "FA7BD4022A54E70300B71476",
         "name" : "FeedAppTests"
       }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:FeedApp.xcodeproj",
+        "identifier" : "FA7BD40C2A54E70300B71476",
+        "name" : "FeedAppUITests"
+      }
     }
   ],
   "version" : 1
