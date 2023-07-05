@@ -27,6 +27,7 @@
 		FAF02F1A2A55000400F4B481 /* SharedTestHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAF02F192A55000400F4B481 /* SharedTestHelpers.swift */; };
 		FAF02F1C2A5507C800F4B481 /* FeedLoaderCacheDecoratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAF02F1B2A5507C800F4B481 /* FeedLoaderCacheDecoratorTests.swift */; };
 		FAF02F1E2A55090B00F4B481 /* FeedLoaderStub.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAF02F1D2A55090B00F4B481 /* FeedLoaderStub.swift */; };
+		FAF02F202A550A5C00F4B481 /* XCTestCase+FeedLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAF02F1F2A550A5C00F4B481 /* XCTestCase+FeedLoader.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -85,6 +86,7 @@
 		FAF02F192A55000400F4B481 /* SharedTestHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedTestHelpers.swift; sourceTree = "<group>"; };
 		FAF02F1B2A5507C800F4B481 /* FeedLoaderCacheDecoratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedLoaderCacheDecoratorTests.swift; sourceTree = "<group>"; };
 		FAF02F1D2A55090B00F4B481 /* FeedLoaderStub.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedLoaderStub.swift; sourceTree = "<group>"; };
+		FAF02F1F2A550A5C00F4B481 /* XCTestCase+FeedLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "XCTestCase+FeedLoader.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -187,6 +189,7 @@
 				FAF02F172A54FF8500F4B481 /* XCTestCase+MemoryLeakTracking.swift */,
 				FAF02F192A55000400F4B481 /* SharedTestHelpers.swift */,
 				FAF02F1D2A55090B00F4B481 /* FeedLoaderStub.swift */,
+				FAF02F1F2A550A5C00F4B481 /* XCTestCase+FeedLoader.swift */,
 			);
 			path = Helpers;
 			sourceTree = "<group>";
@@ -337,6 +340,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				FAF02F1A2A55000400F4B481 /* SharedTestHelpers.swift in Sources */,
+				FAF02F202A550A5C00F4B481 /* XCTestCase+FeedLoader.swift in Sources */,
 				FAF02F1C2A5507C800F4B481 /* FeedLoaderCacheDecoratorTests.swift in Sources */,
 				FAF02F132A54F28000F4B481 /* FeedImageDataLoaderWithFallbackCompositeTests.swift in Sources */,
 				FAF02F0E2A54E78400F4B481 /* FeedLoaderWithFallbackCompositeTests.swift in Sources */,
