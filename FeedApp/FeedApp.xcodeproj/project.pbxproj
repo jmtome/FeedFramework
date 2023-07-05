@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		FA572D6A2A560034006155B9 /* DebuggingSceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA572D692A560034006155B9 /* DebuggingSceneDelegate.swift */; };
 		FA572D6C2A560DB8006155B9 /* SceneDelegateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA572D6B2A560DB8006155B9 /* SceneDelegateTests.swift */; };
 		FA572D732A56102F006155B9 /* FeedLoaderPresentationAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA572D6F2A56102E006155B9 /* FeedLoaderPresentationAdapter.swift */; };
 		FA572D742A56102F006155B9 /* FeedUIComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA572D712A56102E006155B9 /* FeedUIComposer.swift */; };
@@ -87,7 +86,6 @@
 
 /* Begin PBXFileReference section */
 		FA2797F12A55C6D30027DBC0 /* FeedAppUITests.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = FeedAppUITests.xctestplan; sourceTree = "<group>"; };
-		FA572D692A560034006155B9 /* DebuggingSceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebuggingSceneDelegate.swift; sourceTree = "<group>"; };
 		FA572D6B2A560DB8006155B9 /* SceneDelegateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegateTests.swift; sourceTree = "<group>"; };
 		FA572D6D2A56102D006155B9 /* FeedViewAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedViewAdapter.swift; sourceTree = "<group>"; };
 		FA572D6E2A56102E006155B9 /* WeakRefVirtualProxy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeakRefVirtualProxy.swift; sourceTree = "<group>"; };
@@ -205,7 +203,6 @@
 				FAF02F142A54FF0C00F4B481 /* FeedImageDataLoaderWithFallbackComposite.swift */,
 				FAF02F232A55127A00F4B481 /* FeedLoaderCacheDecorator.swift */,
 				FAF02F2D2A5517D700F4B481 /* FeedImageDataLoaderCacheDecorator.swift */,
-				FA572D692A560034006155B9 /* DebuggingSceneDelegate.swift */,
 			);
 			path = FeedApp;
 			sourceTree = "<group>";
@@ -407,7 +404,6 @@
 				FA572D762A56102F006155B9 /* FeedViewAdapter.swift in Sources */,
 				FAF02F152A54FF0C00F4B481 /* FeedImageDataLoaderWithFallbackComposite.swift in Sources */,
 				FA572D752A56102F006155B9 /* MainQueueDispatchDecorator.swift in Sources */,
-				FA572D6A2A560034006155B9 /* DebuggingSceneDelegate.swift in Sources */,
 				FA572D732A56102F006155B9 /* FeedLoaderPresentationAdapter.swift in Sources */,
 				FA572D772A56102F006155B9 /* WeakRefVirtualProxy.swift in Sources */,
 				FAF02F2E2A5517D700F4B481 /* FeedImageDataLoaderCacheDecorator.swift in Sources */,
