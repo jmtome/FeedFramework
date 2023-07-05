@@ -20,6 +20,7 @@
 		FAF02F0A2A54E75000F4B481 /* FeedFrameworkiOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FAF02F072A54E75000F4B481 /* FeedFrameworkiOS.framework */; };
 		FAF02F0B2A54E75000F4B481 /* FeedFrameworkiOS.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = FAF02F072A54E75000F4B481 /* FeedFrameworkiOS.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		FAF02F0E2A54E78400F4B481 /* FeedLoaderWithFallbackCompositeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAF02F0D2A54E78400F4B481 /* FeedLoaderWithFallbackCompositeTests.swift */; };
+		FAF02F112A54F1E200F4B481 /* FeedLoaderWithFallbackComposite.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAF02F102A54F1E200F4B481 /* FeedLoaderWithFallbackComposite.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -71,6 +72,7 @@
 		FAF02F072A54E75000F4B481 /* FeedFrameworkiOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = FeedFrameworkiOS.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		FAF02F0D2A54E78400F4B481 /* FeedLoaderWithFallbackCompositeTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FeedLoaderWithFallbackCompositeTests.swift; sourceTree = "<group>"; };
 		FAF02F0F2A54E7A600F4B481 /* FeedApp.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = FeedApp.xctestplan; sourceTree = "<group>"; };
+		FAF02F102A54F1E200F4B481 /* FeedLoaderWithFallbackComposite.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedLoaderWithFallbackComposite.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -132,6 +134,7 @@
 				FA7BD3F92A54E70200B71476 /* Assets.xcassets */,
 				FA7BD3FB2A54E70200B71476 /* LaunchScreen.storyboard */,
 				FA7BD3FE2A54E70200B71476 /* Info.plist */,
+				FAF02F102A54F1E200F4B481 /* FeedLoaderWithFallbackComposite.swift */,
 			);
 			path = FeedApp;
 			sourceTree = "<group>";
@@ -297,6 +300,7 @@
 			files = (
 				FA7BD3F52A54E70000B71476 /* ViewController.swift in Sources */,
 				FA7BD3F12A54E70000B71476 /* AppDelegate.swift in Sources */,
+				FAF02F112A54F1E200F4B481 /* FeedLoaderWithFallbackComposite.swift in Sources */,
 				FA7BD3F32A54E70000B71476 /* SceneDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
