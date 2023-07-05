@@ -32,3 +32,4 @@ private extension FeedImageDataCache {
         save(data, for: url) { _ in }
     }
 }
+
