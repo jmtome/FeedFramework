@@ -16,9 +16,8 @@ class FeedAcceptanceTests: XCTestCase {
         let feed = launch(httpClient: .online(response), store: .empty)
         
         XCTAssertEqual(feed.numberOfRenderedFeedImageViews(), 2)
-        //        XCTAssertEqual(feed.renderedFeedImageData(at: 0), makeImageData())
-        //        XCTAssertEqual(feed.renderedFeedImageData(at: 1), makeImageData())
-        //TODO: - these equal assertions dont work, same problem that with other tests related to comparing converted data to and fro uiimage-data
+//        XCTAssertEqual(feed.renderedFeedImageData(at: 0), makeImageData())
+//        XCTAssertEqual(feed.renderedFeedImageData(at: 1), makeImageData())
     }
     
     func test_onLaunch_displaysCachedRemoteFeedWhenCustomerHasNoConnectivity() {
@@ -28,12 +27,10 @@ class FeedAcceptanceTests: XCTestCase {
         onlineFeed.simulateFeedImageViewVisible(at: 1)
         
         let offlineFeed = launch(httpClient: .offline, store: sharedStore)
-        
+
         XCTAssertEqual(offlineFeed.numberOfRenderedFeedImageViews(), 2)
 //        XCTAssertEqual(offlineFeed.renderedFeedImageData(at: 0), makeImageData())
 //        XCTAssertEqual(offlineFeed.renderedFeedImageData(at: 1), makeImageData())
-        //TODO: - these equal assertions dont work, same problem that with other tests related to comparing converted data to and fro uiimage-data
-
     }
     
     func test_onLaunch_displaysEmptyFeedWhenCustomerHasNoConnectivityAndNoCache() {
@@ -46,7 +43,7 @@ class FeedAcceptanceTests: XCTestCase {
         let store = InMemoryFeedStore.withExpiredFeedCache
         
         enterBackground(with: store)
-        
+
         XCTAssertNil(store.feedCache, "Expected to delete expired cache")
     }
     
@@ -59,7 +56,7 @@ class FeedAcceptanceTests: XCTestCase {
     }
     
     // MARK: - Helpers
-    
+
     private func launch(
         httpClient: HTTPClientStub = .offline,
         store: InMemoryFeedStore = .empty
@@ -73,11 +70,10 @@ class FeedAcceptanceTests: XCTestCase {
     }
     
     private func enterBackground(with store: InMemoryFeedStore) {
-        let activeScene = UIApplication.shared.connectedScenes.first
         let sut = SceneDelegate(httpClient: HTTPClientStub.offline, store: store)
-        sut.sceneWillResignActive(activeScene!)
+        sut.sceneWillResignActive(UIApplication.shared.connectedScenes.first!)
     }
-            
+
     private func response(for url: URL) -> (Data, HTTPURLResponse) {
         let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
         return (makeData(for: url), response)
@@ -103,5 +99,6 @@ class FeedAcceptanceTests: XCTestCase {
             ["id": UUID().uuidString, "image": "http://image.com"]
         ]])
     }
-    
+
 }
+
