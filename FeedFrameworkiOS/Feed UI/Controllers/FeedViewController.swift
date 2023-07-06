@@ -12,13 +12,13 @@ public protocol FeedViewControllerDelegate {
     func didRequestFeedRefresh()
 }
 
-public final class FeedViewController: UITableViewController {
+public final class FeedViewController: UITableViewController, UITableViewDataSourcePrefetching, FeedLoadingView, FeedErrorView {
     @IBOutlet private(set) public var errorView: ErrorView?
     
+    private var loadingControllers = [IndexPath: FeedImageCellController]()
+    
     private var tableModel = [FeedImageCellController]() {
-        didSet {
-            self.tableView.reloadData()
-        }
+        didSet { tableView.reloadData() }
     }
     
     public var delegate: FeedViewControllerDelegate?
@@ -35,12 +35,23 @@ public final class FeedViewController: UITableViewController {
         tableView.sizeTableHeaderToFit()
     }
     
+    @IBAction private func refresh() {
+        delegate?.didRequestFeedRefresh()
+    }
+    
     public func display(_ cellControllers: [FeedImageCellController]) {
+        loadingControllers = [:]
         tableModel = cellControllers
     }
-}
-//MARK: - UITableViewDelegate and UITableViewDatasource Conformance
-extension FeedViewController {
+    
+    public func display(_ viewModel: FeedLoadingViewModel) {
+        refreshControl?.update(isRefreshing: viewModel.isLoading)
+    }
+    
+    public func display(_ viewModel: FeedErrorViewModel) {
+        errorView?.message = viewModel.message
+    }
+    
     public override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return tableModel.count
     }
@@ -49,13 +60,11 @@ extension FeedViewController {
         return cellController(forRowAt: indexPath).view(in: tableView)
     }
     
+    //this gets called both when scrolling and when doing "tableview.reloadData()", so in the case that we removed images from the feed and reloadData,
+    //this would be called, and the cancelControllerLoad method called would try to fetch a controller from an empty array using tableModel[indexpath.row]. It will crash with an out of hands., so we have to fix that
     public override func tableView(_ tableView: UITableView, didEndDisplaying cell: UITableViewCell, forRowAt indexPath: IndexPath) {
         cancelCellControllerLoad(forRowAt: indexPath)
     }
-}
-
-//MARK: - UITableViewDataSourcePrefetching Conformance
-extension FeedViewController: UITableViewDataSourcePrefetching {
     
     public func tableView(_ tableView: UITableView, prefetchRowsAt indexPaths: [IndexPath]) {
         indexPaths.forEach { indexPath in
@@ -66,33 +75,16 @@ extension FeedViewController: UITableViewDataSourcePrefetching {
     public func tableView(_ tableView: UITableView, cancelPrefetchingForRowsAt indexPaths: [IndexPath]) {
         indexPaths.forEach(cancelCellControllerLoad)
     }
-}
-
-//MARK: - Private FeedViewController Methods
-extension FeedViewController {
+    
     private func cellController(forRowAt indexPath: IndexPath) -> FeedImageCellController {
-        return tableModel[indexPath.row]
+        let controller = tableModel[indexPath.row]
+        loadingControllers[indexPath] = controller
+        return controller
     }
     
     private func cancelCellControllerLoad(forRowAt indexPath: IndexPath) {
-        cellController(forRowAt: indexPath).cancelLoad()
-    }
-    @IBAction private func refresh() {
-        delegate?.didRequestFeedRefresh()
-    }
-}
-
-//MARK: - FeedLoadingView Conformance
-extension FeedViewController: FeedLoadingView {
-    public func display(_ viewModel: FeedLoadingViewModel) {
-        refreshControl?.update(isRefreshing: viewModel.isLoading)
-    }
-}
-
-//MARK: - FeedErrorView Conformance
-extension FeedViewController: FeedErrorView {
-    public func display(_ viewModel: FeedErrorViewModel) {
-        errorView?.message = viewModel.message
+        loadingControllers[indexPath]?.cancelLoad()
+        loadingControllers[indexPath] = nil
     }
 }
 
