@@ -8,26 +8,35 @@
 import UIKit
 import FeedFramework
 
-protocol FeedViewControllerDelegate {
+public protocol FeedViewControllerDelegate {
     func didRequestFeedRefresh()
 }
 
 public final class FeedViewController: UITableViewController {
-    
-    var delegate: FeedViewControllerDelegate?
-    
     @IBOutlet private(set) public var errorView: ErrorView?
     
-    var tableModel = [FeedImageCellController]() {
+    private var tableModel = [FeedImageCellController]() {
         didSet {
             self.tableView.reloadData()
         }
     }
     
+    public var delegate: FeedViewControllerDelegate?
+    
     public override func viewDidLoad() {
         super.viewDidLoad()
         
         refresh()
+    }
+    
+    public override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        
+        tableView.sizeTableHeaderToFit()
+    }
+    
+    public func display(_ cellControllers: [FeedImageCellController]) {
+        tableModel = cellControllers
     }
 }
 //MARK: - UITableViewDelegate and UITableViewDatasource Conformance

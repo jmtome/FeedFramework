@@ -20,4 +20,9 @@ public final class FeedImageCell: UITableViewCell {
     @IBAction private func retryButtonTapped() {
         onRetry?()
     }
+        
+    func setAccessibilityIdentifiers() {
+        self.accessibilityIdentifier = "feed-image-cell"
+        self.feedImageView.accessibilityIdentifier = "feed-image-view"
+    }
 }

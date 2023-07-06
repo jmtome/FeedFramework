@@ -8,21 +8,22 @@
 import UIKit
 import FeedFramework
 
-protocol FeedImageCellControllerDelegate {
+public protocol FeedImageCellControllerDelegate {
     func didRequestImage()
     func didCancelImageRequest()
 }
 
-final class FeedImageCellController: FeedImageView {
+public final class FeedImageCellController: FeedImageView {
     private let delegate: FeedImageCellControllerDelegate
     private var cell: FeedImageCell?
     
-    init(delegate: FeedImageCellControllerDelegate) {
+    public init(delegate: FeedImageCellControllerDelegate) {
         self.delegate = delegate
     }
     
     func view(in tableView: UITableView) -> UITableViewCell {
         cell = tableView.dequeueReusableCell()
+        cell?.setAccessibilityIdentifiers()
         delegate.didRequestImage()
         return cell!
     }
@@ -36,7 +37,7 @@ final class FeedImageCellController: FeedImageView {
         delegate.didCancelImageRequest()
     }
     
-    func display(_ viewModel: FeedImageViewModel<UIImage>) {
+    public func display(_ viewModel: FeedImageViewModel<UIImage>) {
         cell?.locationContainer.isHidden = !viewModel.hasLocation
         cell?.locationLabel.text = viewModel.location
         cell?.descriptionLabel.text = viewModel.description
