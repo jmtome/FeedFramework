@@ -159,3 +159,17 @@ We do the same for the other components, creating a **Image Comments API** folde
 
 
 
+
+
+#### Duplication in the Loaders
+
+We fixed our duplication in the `<HTTPClient>` but we still have a lot of duplication in our `RemoteFeedLoader` and our `RemoteIImageCommentsLoader` which look exactly the same with minor variations in the mapping. 
+
+Duplicating the code is not all bad though, because without duplicating the code and analyzing what are the commonalities and similarities, we probably will end up arriving to the wrong abstractions because without comparison it's hard to see what is the same and what is not.
+
+
+
+The way to solve this is creating a generic **RemoteLoader** and then inject the mapping for every case (which is what is different).
+
+
+

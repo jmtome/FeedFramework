@@ -61,11 +61,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         //            .caching(to: localFeedLoader)
         //            .fallback(to: localFeedLoader.loadPublisher)
         
-        //I added the refactored Combine HTTP Extension, and added a temporary static method to the FeedItemsMapper to return the corresponding map, given I couldnt
-        //just use the original map, now it works
+        //I added the refactored Combine HTTP Extension
         return httpClient
             .getPublisher(url: remoteURL)
-            .tryMap(FeedItemsMapper.mapToFeedImages)
+            .tryMap(FeedItemsMapper.map)
             .caching(to: localFeedLoader)
             .fallback(to: localFeedLoader.loadPublisher)
     }
