@@ -486,6 +486,23 @@
 			path = "Shared API Infra";
 			sourceTree = "<group>";
 		};
+		FA6CEB782A58CAE000167D6F /* Image Comments API */ = {
+			isa = PBXGroup;
+			children = (
+				FA04F1712A588B6A006FB496 /* RemoteImageCommentsLoader.swift */,
+				FA04F1732A588CCF006FB496 /* ImageCommentsMapper.swift */,
+			);
+			path = "Image Comments API";
+			sourceTree = "<group>";
+		};
+		FA6CEB792A58CB1700167D6F /* Image Comments API */ = {
+			isa = PBXGroup;
+			children = (
+				FA04F16F2A586E4F006FB496 /* LoadImageCommentsFromRemoteUseCaseTests.swift */,
+			);
+			path = "Image Comments API";
+			sourceTree = "<group>";
+		};
 		FA7999DE2A4A952D004963A6 /* Infrastructure */ = {
 			isa = PBXGroup;
 			children = (
@@ -619,6 +636,7 @@
 		FABF6D102A26761E009FE0E9 /* FeedFramework */ = {
 			isa = PBXGroup;
 			children = (
+				FA6CEB782A58CAE000167D6F /* Image Comments API */,
 				FA6CEB742A58C9D600167D6F /* Shared API Infra */,
 				FA6CEB732A58C97800167D6F /* Shared API */,
 				FA60AD1A2A58A63D0029C31E /* Image Comments Feature */,
@@ -633,6 +651,7 @@
 		FABF6D1C2A26761F009FE0E9 /* FeedFrameworkTests */ = {
 			isa = PBXGroup;
 			children = (
+				FA6CEB792A58CB1700167D6F /* Image Comments API */,
 				FA6CEB772A58CA5300167D6F /* Shared API Infra */,
 				FA6CEB752A58CA1F00167D6F /* Shared API */,
 				FA349C332A5360C700E1D092 /* Feed Presentation */,
@@ -662,8 +681,6 @@
 				FABF6D332A268B79009FE0E9 /* RemoteFeedLoader.swift */,
 				FABF6D392A26B04F009FE0E9 /* FeedItemsMapper.swift */,
 				FA1AD8102A44D95700B8AB35 /* RemoteFeedItem.swift */,
-				FA04F1712A588B6A006FB496 /* RemoteImageCommentsLoader.swift */,
-				FA04F1732A588CCF006FB496 /* ImageCommentsMapper.swift */,
 				FAB948962A53C7DE008F2804 /* RemoteFeedImageDataLoader.swift */,
 			);
 			path = FeedAPI;
@@ -674,7 +691,6 @@
 			children = (
 				FABF6D2F2A2679C0009FE0E9 /* LoadFeedFromRemoteUseCaseTests.swift */,
 				FAB1BEB02A5385ED00A808D1 /* LoadFeedImageDataFromRemoteUseCaseTests.swift */,
-				FA04F16F2A586E4F006FB496 /* LoadImageCommentsFromRemoteUseCaseTests.swift */,
 			);
 			path = "Feed API";
 			sourceTree = "<group>";
