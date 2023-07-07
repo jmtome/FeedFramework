@@ -173,28 +173,28 @@ final class FeedUIIntegrationTests: XCTestCase {
     //     let myNewImageData = myNewImage.pngData()!
     //
     //     we would expect myImageData.count to be the same as myNewImageData.count, but they aren't. I'm not sure if it is a framework issue.
-//
-//    func test_feedImageView_rendersImageLoadedFromURL() {
-//        let (sut, loader) = makeSUT()
-//
-//        sut.loadViewIfNeeded()
-//        loader.completeFeedLoading(with: [makeImage(), makeImage()])
-//
-//        let view0 = sut.simulateFeedImageViewVisible(at: 0)
-//        let view1 = sut.simulateFeedImageViewVisible(at: 1)
-//        XCTAssertEqual(view0?.renderedImage, .none, "Expected no image for first view while loading first image")
-//        XCTAssertEqual(view1?.renderedImage, .none, "Expected no image for second view while loading second image")
-//
-//        let imageData0 = UIImage.make(withColor: .red).pngData()!
-//        loader.completeImageLoading(with: imageData0, at: 0)
-//        XCTAssertEqual(view0?.renderedImage, imageData0, "Expected image for first view once first image loading completes successfully")
-//        XCTAssertEqual(view1?.renderedImage, .none, "Expected no image state change for second view once first image loading completes successfully")
-//
-//        let imageData1 = UIImage.make(withColor: .blue).pngData()!
-//        loader.completeImageLoading(with: imageData1, at: 1)
-//        XCTAssertEqual(view0?.renderedImage, imageData0, "Expected no image state change for first view once second image loading completes successfully")
-//        XCTAssertEqual(view1?.renderedImage, imageData1, "Expected image for second view once second image loading completes successfully")
-//    }
+    //
+    //    func test_feedImageView_rendersImageLoadedFromURL() {
+    //        let (sut, loader) = makeSUT()
+    //
+    //        sut.loadViewIfNeeded()
+    //        loader.completeFeedLoading(with: [makeImage(), makeImage()])
+    //
+    //        let view0 = sut.simulateFeedImageViewVisible(at: 0)
+    //        let view1 = sut.simulateFeedImageViewVisible(at: 1)
+    //        XCTAssertEqual(view0?.renderedImage, .none, "Expected no image for first view while loading first image")
+    //        XCTAssertEqual(view1?.renderedImage, .none, "Expected no image for second view while loading second image")
+    //
+    //        let imageData0 = UIImage.make(withColor: .red).pngData()!
+    //        loader.completeImageLoading(with: imageData0, at: 0)
+    //        XCTAssertEqual(view0?.renderedImage, imageData0, "Expected image for first view once first image loading completes successfully")
+    //        XCTAssertEqual(view1?.renderedImage, .none, "Expected no image state change for second view once first image loading completes successfully")
+    //
+    //        let imageData1 = UIImage.make(withColor: .blue).pngData()!
+    //        loader.completeImageLoading(with: imageData1, at: 1)
+    //        XCTAssertEqual(view0?.renderedImage, imageData0, "Expected no image state change for first view once second image loading completes successfully")
+    //        XCTAssertEqual(view1?.renderedImage, imageData1, "Expected image for second view once second image loading completes successfully")
+    //    }
     
     func test_feedImageViewRetryButton_isVisibleOnImageURLLoadError() {
         let (sut, loader) = makeSUT()
@@ -333,7 +333,7 @@ final class FeedUIIntegrationTests: XCTestCase {
     
     private func makeSUT(file: StaticString = #file, line: UInt = #line) -> (sut: FeedViewController, loader: LoaderSpy) {
         let loader = LoaderSpy()
-        let sut = FeedUIComposer.feedComposedWith(feedLoader: loader.loadPublisher, imageLoader: loader)
+        let sut = FeedUIComposer.feedComposedWith(feedLoader: loader.loadPublisher, imageLoader: loader.loadImageDataPublisher)
         trackForMemoryLeaks(loader, file: file, line: line)
         trackForMemoryLeaks(sut, file: file, line: line)
         return (sut, loader)
