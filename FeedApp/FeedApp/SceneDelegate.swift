@@ -34,6 +34,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         
         window = UIWindow(windowScene: scene)
         configureWindow()
+        window?.overrideUserInterfaceStyle = .light
     }
     
     func configureWindow() {
@@ -52,10 +53,19 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     private func makeRemoteFeedLoaderWithLocalFallback() -> FeedLoader.Publisher {
         let remoteURL = URL(string: "https://static1.squarespace.com/static/5891c5b8d1758ec68ef5dbc2/t/5db4155a4fbade21d17ecd28/1572083034355/essential_app_feed.json")!
         
-        let remoteFeedLoader = RemoteFeedLoader(url: remoteURL, client: httpClient)
         
-        return remoteFeedLoader
-            .loadPublisher()
+        //MARK: - Code below was the original code before the HTTPClient Combine refactor, and it wasnt working
+        //        let remoteFeedLoader = RemoteFeedLoader(url: remoteURL, client: httpClient)
+        //        return remoteFeedLoader
+        //            .loadPublisher()
+        //            .caching(to: localFeedLoader)
+        //            .fallback(to: localFeedLoader.loadPublisher)
+        
+        //I added the refactored Combine HTTP Extension, and added a temporary static method to the FeedItemsMapper to return the corresponding map, given I couldnt
+        //just use the original map, now it works
+        return httpClient
+            .getPublisher(url: remoteURL)
+            .tryMap(FeedItemsMapper.mapToFeedImages)
             .caching(to: localFeedLoader)
             .fallback(to: localFeedLoader.loadPublisher)
     }
