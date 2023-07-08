@@ -47,8 +47,6 @@
 		FA6944DC2A510CCF004E43DC /* UITableView+Dequeuing.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6944DB2A510CCF004E43DC /* UITableView+Dequeuing.swift */; };
 		FA6944DE2A510E10004E43DC /* UIImageView+Animations.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6944DD2A510E10004E43DC /* UIImageView+Animations.swift */; };
 		FA6C553F2A53490600788C63 /* ErrorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6C553E2A53490600788C63 /* ErrorView.swift */; };
-		FA6CEB7B2A58D4B500167D6F /* RemoteLoaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6CEB7A2A58D4B500167D6F /* RemoteLoaderTests.swift */; };
-		FA6CEB7D2A58D54B00167D6F /* RemoteLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6CEB7C2A58D54B00167D6F /* RemoteLoader.swift */; };
 		FA6ED26E2A547A0200F23C81 /* LocalFeedImageDataLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6ED26D2A547A0200F23C81 /* LocalFeedImageDataLoader.swift */; };
 		FA6ED2702A547A2800F23C81 /* FeedImageDataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6ED26F2A547A2800F23C81 /* FeedImageDataStore.swift */; };
 		FA6ED2722A547D4300F23C81 /* FeedImageDataStoreSpy.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6ED2712A547D4300F23C81 /* FeedImageDataStoreSpy.swift */; };
@@ -197,8 +195,6 @@
 		FA6944DD2A510E10004E43DC /* UIImageView+Animations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIImageView+Animations.swift"; sourceTree = "<group>"; };
 		FA6C55322A53321E00788C63 /* FeedLocalizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedLocalizationTests.swift; sourceTree = "<group>"; };
 		FA6C553E2A53490600788C63 /* ErrorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorView.swift; sourceTree = "<group>"; };
-		FA6CEB7A2A58D4B500167D6F /* RemoteLoaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteLoaderTests.swift; sourceTree = "<group>"; };
-		FA6CEB7C2A58D54B00167D6F /* RemoteLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteLoader.swift; sourceTree = "<group>"; };
 		FA6ED26D2A547A0200F23C81 /* LocalFeedImageDataLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalFeedImageDataLoader.swift; sourceTree = "<group>"; };
 		FA6ED26F2A547A2800F23C81 /* FeedImageDataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedImageDataStore.swift; sourceTree = "<group>"; };
 		FA6ED2712A547D4300F23C81 /* FeedImageDataStoreSpy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedImageDataStoreSpy.swift; sourceTree = "<group>"; };
@@ -455,7 +451,6 @@
 			isa = PBXGroup;
 			children = (
 				FA2235DD2A2A932E00A5A9D8 /* URLSessionHTTPClient.swift */,
-				FA6CEB7C2A58D54B00167D6F /* RemoteLoader.swift */,
 			);
 			path = "Shared API Infra";
 			sourceTree = "<group>";
@@ -464,7 +459,6 @@
 			isa = PBXGroup;
 			children = (
 				FA6CEB762A58CA3F00167D6F /* Helpers */,
-				FA6CEB7A2A58D4B500167D6F /* RemoteLoaderTests.swift */,
 			);
 			path = "Shared API";
 			sourceTree = "<group>";
@@ -1007,7 +1001,6 @@
 				FA7999F42A4A9712004963A6 /* FeedStore.xcdatamodeld in Sources */,
 				FA3C4BBF2A536E5B0091C771 /* FeedPresenter.swift in Sources */,
 				FA009E8B2A47747B00779067 /* FeedCachePolicy.swift in Sources */,
-				FA6CEB7D2A58D54B00167D6F /* RemoteLoader.swift in Sources */,
 				FABF6D292A26764F009FE0E9 /* FeedImage.swift in Sources */,
 				FAF02F2C2A5516D700F4B481 /* FeedImageDataCache.swift in Sources */,
 				FA6ED26E2A547A0200F23C81 /* LocalFeedImageDataLoader.swift in Sources */,
@@ -1022,7 +1015,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FA6CEB7B2A58D4B500167D6F /* RemoteLoaderTests.swift in Sources */,
 				FA009E8E2A47880700779067 /* CodableFeedStoreTests.swift in Sources */,
 				FA799A042A4B73D4004963A6 /* XCTestCase+FailableDeleteFeedStoreSpecs.swift in Sources */,
 				FA3C4BC72A53726B0091C771 /* FeedLocalizationTests.swift in Sources */,
