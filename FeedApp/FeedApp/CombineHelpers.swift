@@ -9,6 +9,7 @@ import Foundation
 import Combine
 import FeedFramework
 
+//Code Below allows us not to depend on our own abstractions like RemoteLoader, because we get it from free from Combine.
 public extension HTTPClient {
     typealias Publisher = AnyPublisher<(Data, HTTPURLResponse), Error>
 
