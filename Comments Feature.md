@@ -287,11 +287,32 @@ This way, we Compose our use-cases with the infrastructure in a **functional** w
 
 
 
+This way, our final design ends up looking like: 
+
+
+
+<img src="/Users/macbook/Library/Application Support/typora-user-images/image-20230708160239981.png" alt="image-20230708160239981" style="zoom:50%;" />
+
+We dont need a loader, everything is composed with abstractions.
 
 
 
 
 
+## Old vs New Design 
+
+### Old Design 
+
+![image-20230708160330931](/Users/macbook/Library/Application Support/typora-user-images/image-20230708160330931.png)
 
 
 
+### New Design 
+
+![image-20230708160344181](/Users/macbook/Library/Application Support/typora-user-images/image-20230708160344181.png)
+
+
+
+We dont have a **Loader** anymore, we just have the **FeedItemsMapper**, for the feed-use-case, everything composed in the Composition Root.
+
+Since we dont have a component from the **FeedAPI** module conforming to the **FeedLoader** protocol (like the **RemoteFeedLoader**), we have only the **LocalFeedLoader** conforming to the **FeedLoader** (only one implementation), we don't even need the **<FeedLoader>** because we dont need a strategy anymore, so we can remove it.
