@@ -316,3 +316,17 @@ We dont need a loader, everything is composed with abstractions.
 We dont have a **Loader** anymore, we just have the **FeedItemsMapper**, for the feed-use-case, everything composed in the Composition Root.
 
 Since we dont have a component from the **FeedAPI** module conforming to the **FeedLoader** protocol (like the **RemoteFeedLoader**), we have only the **LocalFeedLoader** conforming to the **FeedLoader** (only one implementation), we don't even need the **<FeedLoader>** because we dont need a strategy anymore, so we can remove it.
+
+
+
+Removing the `<FeedLoader>` :
+
+![image-20230708163440470](/Users/macbook/Library/Application Support/typora-user-images/image-20230708163440470.png)
+
+
+
+We get a much simpler design.
+
+
+
+So, **Functional Style**: you dont ***inject*** dependencies, you ***compose*** them with the functional sandwich.
