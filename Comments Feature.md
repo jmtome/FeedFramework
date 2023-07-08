@@ -173,7 +173,7 @@ The way to solve this is creating a generic **RemoteLoader** and then inject the
 
 
 
-Once we've made the Generic **RemoteLoader<Resource>** , a very cunning thing we can do is to typealias our **RemoteImageCommentsLoader** with the specific type. We can do this because typealiasing doesnt break any clients. We can then make an extension to this typealias and add a convenience init:
+Once we've made the Generic **RemoteLoader<Resource>** , a very cunning thing we can do is to typealias our **RemoteImageCommentsLoader** with the specific type ([**ImageComment**]). We can do this because typealiasing doesnt break any clients. We can then make an extension to this typealias and add a convenience init:
 
 
 
@@ -190,4 +190,22 @@ public extension RemoteImageCommentsLoader {
 
 
 This way we dont break any existing uses of the ``` RemoteImageCommentsLoader``` and even the tests still work.
+
+
+
+In the same fashion we repeat this procedure for the **RemoteFeedLoader**, which takes in a [**FeedImage**] as specific type:
+
+
+
+```swift
+public typealias RemoteFeedLoader = RemoteLoader<[FeedImage]>
+
+public extension RemoteFeedLoader {
+    convenience init(url: URL, client: HTTPClient) {
+        self.init(url: url, client: client, mapper: FeedItemsMapper.map)
+    }
+}
+```
+
+
 
