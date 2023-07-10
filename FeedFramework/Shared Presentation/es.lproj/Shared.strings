@@ -1,0 +1,9 @@
+/* 
+  Shared.strings
+  FeedFramework
+
+  Created by macbook on 10/07/2023.
+  
+*/
+
+"GENERIC_CONNECTION_ERROR" = "No es posible conectar con el servidor.";
