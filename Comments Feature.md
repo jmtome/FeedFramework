@@ -1,4 +1,27 @@
+
+
 ## Comments Feature
+
+## Goals 
+
+1. Display a list of comments when the user taps on an image in the feed.
+2. Loading the comments can fail, so you must handle the UI states accordingly.
+   - Show a loading spinner while loading the comments.
+   - If it fails to load: Show an error message.
+   - If it loads successfully: Show all loaded comments in the order they were returned by the remote API
+
+3. The loading should start automatically when the user navigates to the screen.
+   - The user should also be able to reload the comments manually (Pull-to-refresh)
+
+4. At all times, the user should have a back button to return to the feed screen.
+   - Cancel any running comments API requests when the user navigates back.
+5. The comments screen layout should match the UI specs.
+   - Present the comment date using relative date formatting, e.g., "1 day ago."
+6. The comments screen title should be localized in all languages supported in the project
+7. The comments screen should support Light and Dark Mode
+8. Write tests to validate your implementaton, including unit, integration, and snapshot tests (aim to write the test first!).
+
+
 
 ### API Specs
 
@@ -330,3 +353,152 @@ We get a much simpler design.
 
 
 So, **Functional Style**: you dont ***inject*** dependencies, you ***compose*** them with the functional sandwich.
+
+
+
+
+
+# How to create Reusable presentation logic layer
+
+The presentation we have for the main feed is the same that we will have for the comments, we have the spinner, then either the sad case or the happy case. This presentation is even the same for the image loading, although with a different visual representation (spinner vs shimmering).
+
+ So we have to see how to reuse this code, by making some sort of abstraction, and not duplicate. This way everytime we need to load a resource we can use the esame presentation
+
+
+
+## Current Design 
+
+ <img src="/Users/macbook/Library/Application Support/typora-user-images/image-20230708172055346.png" alt="image-20230708172055346" style="zoom:50%;" />
+
+
+
+We can see that the features are decoupled from eachother, and we want to keep it that way, even though they are going share presentation logic and may share infrastructure for loading details.
+
+
+
+### Feed Presentation Logic 
+
+![image-20230708172309142](/Users/macbook/Library/Application Support/typora-user-images/image-20230708172309142.png)
+
+We have the **FeedPresenter** that we implemented in the presentation module, that creates`ViewModels` and passes them to the `<View>` protocols. So the **FeedPresenter** controls the loading of the resource, and the resource is the *feed* which is an array of images. 
+
+
+
+We can follow the same design for the ***ImageComments*** but we would end up with duplication
+
+![image-20230710125514633](/Users/macbook/Library/Application Support/typora-user-images/image-20230710125514633.png)
+
+But, all the logic of the `LoadingViewModel`, `ErrorViewModel`, `*ViewModel` being passed to the `<View>` protocols is the same for both modules. So we dont't really need duplication. 
+
+
+
+We can refactor the architecture as follows: 
+
+![image-20230710125824709](/Users/macbook/Library/Application Support/typora-user-images/image-20230710125824709.png)
+
+We create a shared module with all that is similar, ***SharedPresentation*** module, and we inject what is different into the generic presenter. So this way we can abstract all the loading of the resources into a reusable share logic and inject what is different (the mappings).
+
+
+
+We can see that our modules are decoupled from eachother, how is this possible? By using a Composition Root, this allows us to compose all the modules with whatever abstract dependencies they may have, in a single place, without needing them to be directly coupled by themselves.
+
+Usually its very common to see projects where all the code is _coupled_ with a **SharedModule**, with lots of arrows coming into the shared module. But we do not want this because any changes to the SharedModule would mean at minimum needing to recompile and redeploy, and at worse needing to modify the coupled modules. So the best thing is to have them all decoupled, and then use a **Composition Root**.
+
+
+
+### Generalization of the previously existing Presenter logic
+
+Our **FeedPresenter** is comprised at the moment with the following protocol view dependencies: 
+
+``````swift
+    private let feedView: FeedView
+    private let loadingView: FeedLoadingView
+    private let errorView: FeedErrorView
+``````
+
+and the following methods: 
+
+```swift
+ public func didStartLoadingFeed() {
+        errorView.display(.noError)
+        loadingView.display(FeedLoadingViewModel(isLoading: true))
+}
+public func didFinishLoadingFeed(with feed: [FeedImage]) {
+        feedView.display(FeedViewModel(feed: feed))
+        loadingView.display(FeedLoadingViewModel(isLoading: false))
+}
+public func didFinishLoadingFeed(with error: Error) {
+     		errorView.display(.error(message: feedLoadError))
+  		  loadingView.display(FeedLoadingViewModel(isLoading: false))
+}
+```
+
+Doing an analysis we can see that what they do is:`data in → creates view models → data out to the UI` :
+
+
+
+` Void` →`creates view models` → `sends to the UI`
+
+```swift
+ public func didStartLoadingFeed() {
+        errorView.display(.noError)
+        loadingView.display(FeedLoadingViewModel(isLoading: true))
+}
+```
+
+` [FeedImage]` →`creates view models` → `sends to the UI`
+
+```swift
+public func didFinishLoadingFeed(with feed: [FeedImage]) {
+        feedView.display(FeedViewModel(feed: feed))
+        loadingView.display(FeedLoadingViewModel(isLoading: false))
+}
+```
+
+` Error` →`creates view models` → `sends to the UI`
+
+```swift
+public func didFinishLoadingFeed(with error: Error) {
+     		errorView.display(.error(message: feedLoadError))
+  		  loadingView.display(FeedLoadingViewModel(isLoading: false))
+}
+```
+
+
+
+
+
+
+
+And, we would need our ImageComments to function in a similar fashion: 
+
+` [ImageComment]` →`creates view models` → `sends to the UI`
+
+For images we would need: 
+
+` Data` →`creates UIImage` → `sends to the UI`
+
+
+
+We come to the conclusion that basically what we need is :
+
+` Resource` →`creates ResourceViewModel` → `sends to the UI`
+
+Thereforethe goal is to create a  generic **Presenter** with the above logic.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
