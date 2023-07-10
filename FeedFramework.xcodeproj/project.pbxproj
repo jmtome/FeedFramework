@@ -44,6 +44,7 @@
 		FA60AD1C2A58A6510029C31E /* ImageComment.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA60AD1B2A58A6510029C31E /* ImageComment.swift */; };
 		FA6749892A5C96E30001DAF2 /* Shared.strings in Resources */ = {isa = PBXBuildFile; fileRef = FA67498B2A5C96E30001DAF2 /* Shared.strings */; };
 		FA67498F2A5C99200001DAF2 /* SharedLocalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA67498E2A5C99200001DAF2 /* SharedLocalizationTests.swift */; };
+		FA6749912A5CA77F0001DAF2 /* SharedLocalizationTestHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6749902A5CA77F0001DAF2 /* SharedLocalizationTestHelpers.swift */; };
 		FA6944D82A50F56D004E43DC /* Feed.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = FA6944D72A50F56D004E43DC /* Feed.storyboard */; };
 		FA6944DA2A50F60B004E43DC /* Feed.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FA6944D92A50F60B004E43DC /* Feed.xcassets */; };
 		FA6944DC2A510CCF004E43DC /* UITableView+Dequeuing.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6944DB2A510CCF004E43DC /* UITableView+Dequeuing.swift */; };
@@ -195,6 +196,7 @@
 		FA67498C2A5C96EA0001DAF2 /* pt-BR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "pt-BR"; path = "pt-BR.lproj/Shared.strings"; sourceTree = "<group>"; };
 		FA67498D2A5C96EB0001DAF2 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Shared.strings; sourceTree = "<group>"; };
 		FA67498E2A5C99200001DAF2 /* SharedLocalizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedLocalizationTests.swift; sourceTree = "<group>"; };
+		FA6749902A5CA77F0001DAF2 /* SharedLocalizationTestHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedLocalizationTestHelpers.swift; sourceTree = "<group>"; };
 		FA6944D72A50F56D004E43DC /* Feed.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = Feed.storyboard; sourceTree = "<group>"; };
 		FA6944D92A50F60B004E43DC /* Feed.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Feed.xcassets; sourceTree = "<group>"; };
 		FA6944DB2A510CCF004E43DC /* UITableView+Dequeuing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UITableView+Dequeuing.swift"; sourceTree = "<group>"; };
@@ -342,6 +344,7 @@
 			children = (
 				FA2235DB2A2A80E900A5A9D8 /* XCTestCase+MemoryLeakTracking.swift */,
 				FA009E872A4672B800779067 /* SharedTestHelpers.swift */,
+				FA6749902A5CA77F0001DAF2 /* SharedLocalizationTestHelpers.swift */,
 			);
 			path = Helpers;
 			sourceTree = "<group>";
@@ -1058,6 +1061,7 @@
 				FA0386AF2A439062005F2059 /* CacheFeedUseCaseTests.swift in Sources */,
 				FA425FE52A450667004E293A /* FeedStoreSpy.swift in Sources */,
 				FA1BA3962A466D630017CB0D /* ValidateFeedCacheUseCaseTests.swift in Sources */,
+				FA6749912A5CA77F0001DAF2 /* SharedLocalizationTestHelpers.swift in Sources */,
 				FA009E882A4672B800779067 /* SharedTestHelpers.swift in Sources */,
 				FA6ED2722A547D4300F23C81 /* FeedImageDataStoreSpy.swift in Sources */,
 				FABF6D3E2A284842009FE0E9 /* URLSessionHTTPClientTests.swift in Sources */,
