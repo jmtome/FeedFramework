@@ -496,6 +496,12 @@ We start by adding a new test file, copying the already existing tests for the a
 
 
 
+##### Advice: Before you make it generic, make it concrete, otherwise if you try to change behaviour while trying to make it generic at the same time you will have a lot of compiler errors and problems that will confuse you
+
+
+
+
+
 
 
 
