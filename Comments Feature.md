@@ -673,3 +673,16 @@ public static func map(_ comments: [ImageComment],
 ```
 
 This way we can properly test different locales and what date string results they return.
+
+This is all that that was required for the **ImageCommentsPresenter** layer. (literally a map and a title, the rest is reused.)
+
+
+
+We now have a **very clear way** to add new resource presenters, and adding new API mappers without duplicating code nor coupling modules: 
+
+- Everytime there is a new feature, we just create a new API mapper that maps from **domain model** to **view model**, and then we compose with the composable logic in the UICompositionRoot.
+
+
+
+We are now ready to implement the UILayer for the comments section.
+
