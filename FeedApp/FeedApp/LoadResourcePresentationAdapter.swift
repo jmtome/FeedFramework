@@ -23,20 +23,33 @@ final class LoadResourcePresentationAdapter<Resource, View: ResourceView> {
         
         cancellable = loader()
             .dispatchOnMainQueue()
-            .sink { [weak self] completion in
-            switch completion {
-            case .finished: break
-            case .failure(let error):
-                self?.presenter?.didFinishLoading(with: error)
-            }
-        } receiveValue: { [weak self] resource in
-            self?.presenter?.didFinishLoading(with: resource)
-        }
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    switch completion {
+                    case .finished: break
+                        
+                    case let .failure(error):
+                        self?.presenter?.didFinishLoading(with: error)
+                    }
+                }, receiveValue: { [weak self] resource in
+                    self?.presenter?.didFinishLoading(with: resource)
+                })
     }
 }
 
 extension LoadResourcePresentationAdapter: FeedViewControllerDelegate {
     func didRequestFeedRefresh() {
         loadResource()
+    }
+}
+
+extension LoadResourcePresentationAdapter: FeedImageCellControllerDelegate {
+    func didRequestImage() {
+        loadResource()
+    }
+    
+    func didCancelImageRequest() {
+        cancellable?.cancel()
+        cancellable = nil
     }
 }
