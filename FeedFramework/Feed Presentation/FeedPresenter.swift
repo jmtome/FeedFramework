@@ -43,7 +43,7 @@ public final class FeedPresenter {
     
     // [FeedImage] -> creates view models -> sends to the UI
     public func didFinishLoadingFeed(with feed: [FeedImage]) {
-        feedView.display(FeedViewModel(feed: feed))
+        feedView.display(Self.map(feed))
         loadingView.display(ResourceLoadingViewModel(isLoading: false))
     }
     
@@ -53,11 +53,7 @@ public final class FeedPresenter {
         loadingView.display(ResourceLoadingViewModel(isLoading: false))
     }
     
-    //So what do we need for the comments?
-    //
-    // [ImageComment] -> creates view models -> sends to the UI
-    //
-    // Generic form:
-    //
-    // Resource -> create ResourceViewModel -> sends to the UI
+    public static func map(_ feed: [FeedImage]) -> FeedViewModel {
+        FeedViewModel(feed: feed)
+    }
 }

@@ -500,7 +500,7 @@ We start by adding a new test file, copying the already existing tests for the a
 
 
 
-
+Once we've made the **ResourcePresenter**, we have to replace the original **FeedPresenter** with the generic one, and we need to inject the mapping.
 
 
 
