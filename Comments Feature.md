@@ -814,5 +814,17 @@ public final class FeedImageCellController: CellController, ResourceView, Resour
 
 
 
+Next step is to refactor the name of the **FeedViewController** into something more generic like **ListViewController**: 
+
+```swift
+public final class FeedViewController: UITableViewController, UITableViewDataSourcePrefetching, ResourceLoadingView, ResourceErrorView {}
+```
+
+⭢⭢⭢⭢⭢
+
+```swift
+public final class ListViewController: UITableViewController, UITableViewDataSourcePrefetching, ResourceLoadingView, ResourceErrorView {}
+```
+
 
 

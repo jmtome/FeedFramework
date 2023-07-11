@@ -8,10 +8,10 @@
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
-        <!--Feed View Controller-->
+        <!--List View Controller-->
         <scene sceneID="oJj-U1-6eE">
             <objects>
-                <tableViewController id="Hmi-XO-ZhO" customClass="FeedViewController" customModule="FeedFrameworkiOS" customModuleProvider="target" sceneMemberID="viewController">
+                <tableViewController id="Hmi-XO-ZhO" customClass="ListViewController" customModule="FeedFrameworkiOS" customModuleProvider="target" sceneMemberID="viewController">
                     <tableView key="view" clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" dataMode="prototypes" style="plain" separatorStyle="none" rowHeight="-1" estimatedRowHeight="-1" sectionHeaderHeight="28" sectionFooterHeight="28" id="xWS-BW-6Tz">
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
