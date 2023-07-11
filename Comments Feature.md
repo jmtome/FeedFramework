@@ -516,9 +516,50 @@ We could even make the **FeedLoaderPresentationAdapter** generic since its very 
 
 
 
+The idea is that we end up using the **FeedImagePresenter** in the same fashion as the **FeedPresenter**, only to inject mapping.
 
 
 
+To be able to use the generic `LoadResourcePresenter`, we need to have the same cases: *loading, success(data), error(error)* that we did for the **FeedPresenter**,
+
+To do this we will have to refactor the `FeedImageViewModel<Image>` into what is image specific and what is image-data-loading specific.
+
+
+
+To do this we start with a test:
+
+```swift
+ func test_map_createsViewModel() {
+        let image = uniqueImage()
+
+        let viewModel = FeedImagePresenter<ViewSpy, AnyImage>.map(image)
+        
+        XCTAssertEqual(viewModel.description, image.description)
+        XCTAssertEqual(viewModel.location, image.location)
+}
+```
+
+We state that we want a `map(_ image: Image)-> FeedImageViewModel `, that takes in an image and maps it into a **FeedImageViewModel**.
+
+
+
+From the original `FeedImageViewModel<Image>`: 
+
+```swift
+public struct FeedImageViewModel<Image> {
+    public let description: String?
+    public let location: String?
+    public let image: Image?
+    public let isLoading: Bool
+    public let shouldRetry: Bool
+
+    public var hasLocation: Bool {
+        return location != nil
+    }
+}
+```
+
+The only properties that will remain in the **FeedImageViewModel** will be `description` and `location` which are the true properties related to the FeedImage, the rest are either related to loading or to error, and will be moved to other ViewModels.
 
 
 
