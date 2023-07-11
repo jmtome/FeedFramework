@@ -619,4 +619,32 @@ Finally, we remove all the logic related to the **FeedImagePresenter** , in lieu
 
 
 
-Next step is to finally implement the **ImageCommentsPresenter**
+Next step is to finally implement the **ImageCommentsPresenter**, which in the same fashion as before, will have a `map(_ model: [ImageComment]) -> ImageCommentsViewModel` method. **ImageCommentsViewModel** is just a wrapper for an array of **ImageCommentViewModel**. 
+
+```swift
+public struct ImageCommentsViewModel {
+    public let comments: [ImageCommentViewModel]
+}
+
+public struct ImageCommentViewModel {
+    public let message: String
+    public let date: String
+    public let username: String
+}
+```
+
+our map function is: 
+
+
+
+```swift
+  public static func map(_ comments: [ImageComment]) -> ImageCommentsViewModel {
+        ImageCommentsViewModel(comments: comments.map { comment in
+            let formatter = RelativeDateTimeFormatter()
+            let localizedDate = formatter.localizedString(for: comment.createdAt, relativeTo: Date())
+            
+            return ImageCommentViewModel(message: comment.message, date: localizedDate, username: comment.username)
+        })
+    }
+```
+
