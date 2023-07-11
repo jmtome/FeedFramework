@@ -648,3 +648,28 @@ our map function is:
     }
 ```
 
+
+
+But there is a problem with this map function, which is that it is not taking into account any of the locale data for the date, which makes our tests brittle.
+
+So we modify our map function to take into account the current date, locale, and calendar parameters to properly create the viewModel.
+
+```swift
+public static func map(_ comments: [ImageComment],
+                           currentDate: Date = Date(),
+                           calendar: Calendar = .current,
+                           locale: Locale = .current) -> ImageCommentsViewModel {
+        
+        ImageCommentsViewModel(comments: comments.map { comment in
+            let formatter = RelativeDateTimeFormatter()
+            formatter.calendar = calendar
+            formatter.locale = locale
+            
+            let localizedDate = formatter.localizedString(for: comment.createdAt, relativeTo: currentDate)
+            
+            return ImageCommentViewModel(message: comment.message, date: localizedDate, username: comment.username)
+        })
+}
+```
+
+This way we can properly test different locales and what date string results they return.
