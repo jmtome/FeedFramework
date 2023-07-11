@@ -615,3 +615,8 @@ This way, we get rid of our original `func display(_ viewModel: FeedImageViewMod
 
 
 
+Finally, we remove all the logic related to the **FeedImagePresenter** , in lieu of the new generic presenter.
+
+
+
+Next step is to finally implement the **ImageCommentsPresenter**
