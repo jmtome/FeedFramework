@@ -502,6 +502,20 @@ We start by adding a new test file, copying the already existing tests for the a
 
 Once we've made the **ResourcePresenter**, we have to replace the original **FeedPresenter** with the generic one, and we need to inject the mapping.
 
+After that we need to do the same and unify the **FeedImagePresenter** , which will have the same three states, *loading*, *error*, and *success(uiImage)*
+
+
+
+
+
+We could even make the **FeedLoaderPresentationAdapter** generic since its very similar to the **FeedImageDataLoaderPresentationAdapter**:
+
+1) they tell the presenter they start loading
+2) if there is a failure it passes a failure to the presenter
+3) if there is a success it passes data to the presenter
+
+
+
 
 
 
