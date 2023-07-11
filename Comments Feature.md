@@ -686,3 +686,7 @@ We now have a **very clear way** to add new resource presenters, and adding new 
 
 We are now ready to implement the UILayer for the comments section.
 
+
+
+Truth is, that we dont even need the Specific Presenter, because at this point it's just a namespace for the map function, and we can inject directly the init for the viewmodels instead of the map functions.
+
