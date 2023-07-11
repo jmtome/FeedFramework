@@ -842,5 +842,11 @@ There is nothing wrong with using delegates/protocols, but usually protocols wit
 
 
 
+At this point we are already done with the first part:
 
+![image-20230711191610083](/Users/macbook/Library/Application Support/typora-user-images/image-20230711191610083.png)
+
+
+
+Because all we did was rename classes and conform to the new ```<CellController>``` protocol. 
 
