@@ -684,9 +684,135 @@ We now have a **very clear way** to add new resource presenters, and adding new 
 
 
 
-We are now ready to implement the UILayer for the comments section.
+We are now ready to implement the UILayer for the comments section. As an additional note, it would be possible to create an adapter between the presenter and the view layer so that both could be changed without incurring in trouble for the dependant layer , but for this case it's not neccesary.
 
 
 
 Truth is, that we dont even need the Specific Presenter, because at this point it's just a namespace for the map function, and we can inject directly the init for the viewmodels instead of the map functions.
+
+
+
+## Image Comments UI Layer
+
+ In the previous sections we implemented: 
+
+- [x] API (Live 001)
+- [x] Presentation (Live 002)
+
+Now we will implement: 
+
+- [ ] UI (Live 003)
+  - [ ] Reusing UI components (without breaking modularity)
+  - [ ] Creating UI elements programatically
+  - [ ] Diffable Data Sources
+  - [ ] Dynamic Fonts (aka Dynamic Type)
+  - [ ] Snapshot testing
+
+In the following Live we will implement:
+
+- [ ] Composition (Live 004)
+
+
+
+### First Analysis
+
+At first sight we can say that views are generally the same, the only thing that is going to change for our UI is the cell configuration, and the loading/error view is exactly the same for both the feed and the comments section. 
+
+So we are going to reuse as much as we can the same UI from our existing feed, this way we avoid code duplication and we guarantee a smooth user experience. 
+
+We are going to genericize our existing ui and just inject the different changes when needed, which in this case is the cell.  
+
+
+
+As usual, we start by having a look at our diagram: 
+
+<img src="/Users/macbook/Library/Application Support/typora-user-images/image-20230711175044641.png" alt="image-20230711175044641" style="zoom:50%;" />
+
+
+
+We have already implemented the **Feed UI** , now its time to implement the **Comments UI** 
+
+
+
+Lets take a look at our **Feed User Interface Design**: 
+
+![image-20230711175145002](/Users/macbook/Library/Application Support/typora-user-images/image-20230711175145002.png)
+
+So, we have a **FeedViewController** that implements some shared Presentation Interfaces/ protocols and it renders a collection of **FeedImageCellControllers**, and each **FeedImageCellController** renders a Cell configured for a specific **FeedImageViewModel**, so every CellController is specific to one cell, and the **FeedViewController** coordinates the collection of **CellControllers** , we can see this here:
+
+```swift
+public final class FeedViewController: UITableViewController, UITableViewDataSourcePrefetching, ResourceLoadingView, ResourceErrorView {
+    @IBOutlet private(set) public var errorView: ErrorView?
+    
+    private var loadingControllers = [IndexPath: FeedImageCellController]()
+    
+    private var tableModel = [FeedImageCellController]() {
+        didSet { tableView.reloadData() }
+    }
+    .....
+    .....
+}
+```
+
+These **FeedImageCellController**s are a bunch of tiny MVC's controlling specific parts of the UI, in this case, the Cells:
+
+```swift
+public final class FeedImageCellController: ResourceView, ResourceLoadingView, ResourceErrorView {
+    
+    private let viewModel: FeedImageViewModel
+    private let delegate: FeedImageCellControllerDelegate
+    private var cell: FeedImageCell?
+    
+    public init(viewModel: FeedImageViewModel, delegate: FeedImageCellControllerDelegate) {
+        self.viewModel = viewModel
+        self.delegate = delegate
+    }
+  ...
+  ...
+}
+```
+
+Where the ViewModel is the model, the Cell is the View and then the Controller.
+
+
+
+So, we could follow the same design and create an **ImageCommentsViewController** that coordinates a collection of **ImageCommentCellControllers** that renders **ImageCommentsViewModel**. 
+
+<img src="/Users/macbook/Library/Application Support/typora-user-images/image-20230711180432621.png" alt="image-20230711180432621" style="zoom:50%;" />
+
+
+
+But what is the **problem** with this approach?  :arrow_right:  :arrow_right: **Duplication** . We would have complete duplication, which is not what we want. What we want to do is to make the **FeedImageCellController** that we already have generic so that it can display whatever we want by injecting different types of cell controllers.
+
+
+
+What we can do is create a **Shared UI Module** with shared logic. We could create a **ListViewController** that can render any type of `<CellController>` abstraction, instead of having concrete-typed **FeedViewController** and **ImageCommentsViewController**: 
+
+![image-20230711180656285](/Users/macbook/Library/Application Support/typora-user-images/image-20230711180656285.png)
+
+And both the  **FeedImageCellController** and **ImageCommentCellController**  would implement  this abstraction:  `<CellControllers>` which doesn't know about concrete, feature specific **CellControllers**, which means we can add new features and reuse the **ListViewController**.   
+
+
+
+First of all we create the  **<CellController>** protocol by extracting the method names that we need to abstract: 
+
+```swift
+public protocol CellController {
+    func view(in tableview: UITableView) -> UITableViewCell
+    func preload()
+    func cancelLoad()
+}
+```
+
+Then we replace all the instances of **FeedImageCellController** with **<CellController>** . Now, any concrete class that implements CellController can be used to render Cells in the FeedViewController.
+
+So we start by making **FeedImageCellController** conform to our new abstraction **<CellController>**: 
+
+```swift
+public final class FeedImageCellController: CellController, ResourceView, ResourceLoadingView, ResourceErrorView {}
+```
+
+
+
+
 
