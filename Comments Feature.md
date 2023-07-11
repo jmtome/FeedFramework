@@ -828,3 +828,19 @@ public final class ListViewController: UITableViewController, UITableViewDataSou
 
 
 
+Following, we get rid of the **<FeedViewControllerDelegate>** , and we replace it with a closure, since this protocol only had one method.  So we replace the ***delegate*** property with an ***onRefresh*** closure. We assign this closure in the **CompositionRoot**, in the **FeedUIComposer**.
+
+We move the extension logic from the **LoadResourcePresentationAdapter**  that conformed to the delegate, to the **FeedUIComposer** and simply assign: 
+
+```swift
+feedController.onRefresh = presentationAdapter.loadResource
+```
+
+There is nothing wrong with using delegates/protocols, but usually protocols with one single method can be replaced by closures.
+
+
+
+
+
+
+
