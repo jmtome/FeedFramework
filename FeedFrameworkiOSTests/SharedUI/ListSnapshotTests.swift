@@ -11,7 +11,7 @@ import FeedFrameworkiOS
 
 final class ListSnapshotTests: XCTestCase {
     
-    func test_listFeed() {
+    func test_emptyList() {
         let sut = makeSUT()
         
         sut.display(emptyList())
@@ -32,10 +32,9 @@ final class ListSnapshotTests: XCTestCase {
     // MARK: - Helpers
     
     private func makeSUT() -> ListViewController {
-        let bundle = Bundle(for: ListViewController.self)
-        let storyboard = UIStoryboard(name: "Feed", bundle: bundle)
-        let controller = storyboard.instantiateInitialViewController() as! ListViewController
+        let controller = ListViewController()
         controller.loadViewIfNeeded()
+        controller.tableView.separatorStyle = .none
         controller.tableView.showsVerticalScrollIndicator = false
         controller.tableView.showsHorizontalScrollIndicator = false
         return controller

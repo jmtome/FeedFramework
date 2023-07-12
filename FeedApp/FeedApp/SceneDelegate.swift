@@ -34,7 +34,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         
         window = UIWindow(windowScene: scene)
         configureWindow()
-        window?.overrideUserInterfaceStyle = .light
+//        window?.overrideUserInterfaceStyle = .light
     }
     
     func configureWindow() {
