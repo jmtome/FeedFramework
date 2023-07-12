@@ -850,3 +850,39 @@ At this point we are already done with the first part:
 
 Because all we did was rename classes and conform to the new ```<CellController>``` protocol. 
 
+
+
+#### ImageComments UI 
+
+Now its time to implement the ImageComments UI 
+
+![image-20230711203634462](/Users/macbook/Library/Application Support/typora-user-images/image-20230711203634462.png)
+
+
+
+So, as always, we start with a test, in this case with snapshot tests, where we create the required dummy data to display, we start to build our **ImageCommentCellController** 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
