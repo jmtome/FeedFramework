@@ -16,7 +16,7 @@ public class ImageCommentCellController: NSObject {
     }
 }
 
-extension ImageCommentCellController: CellController {
+extension ImageCommentCellController: UITableViewDataSource {
     public func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         1
     }
@@ -28,6 +28,4 @@ extension ImageCommentCellController: CellController {
         cell.dateLabel.text = model.date
         return cell
     }
-    
-    public func tableView(_ tableView: UITableView, prefetchRowsAt indexPaths: [IndexPath]) {}
 }

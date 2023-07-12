@@ -912,9 +912,146 @@ Doing this allows us to further decouple other modules from the Shared UI Module
 
 
 
+But, since there are many clients that implement **<CellController>** that do not need/aren't interested in implementing all the methods that conforming to multiple protocols entails, we replace protocol composition with a struct composition:
 
 
 
+```swift
+public struct CellController {
+    let dataSource: UITableViewDataSource
+    let delegate: UITableViewDelegate?
+    let dataSourcePrefetching: UITableViewDataSourcePrefetching?
+
+    public init(_ dataSource: UITableViewDataSource & UITableViewDelegate & UITableViewDataSourcePrefetching) {
+        self.dataSource = dataSource
+        self.delegate = dataSource
+        self.dataSourcePrefetching = dataSource
+    }
+
+    public init(_ dataSource: UITableViewDataSource) {
+        self.dataSource = dataSource
+        self.delegate = nil
+        self.dataSourcePrefetching = nil
+    }
+}
+```
+
+
+
+With this struct composition, we stablish which protocol _must_ be implemented by the clients: the `<UITableViewDataSource>` protocol, since without it it wouldn't be possible to display anything in the tableview, therefore it is mandatory. But both the delegate and dataSourcePrefetching protocols might not be something that clients need to implement, so this way when they do not need them, they simply don't.
+
+This way, for example, our **ImageCommentCellController** client, that was previously conforming to the previous <CellController>  protocol composition, will now not need to implement the:
+
+```swift
+public func tableView(_ tableView: UITableView, prefetchRowsAt indexPaths: [IndexPath]) {}
+```
+
+method, and can simply conform to the `<UITableViewDataSource>` protocol, and be composed/wrapped in other places of the codebase by using the **CellController** client that takes in an object conforming to the <UITableViewDataSource> , like this.
+
+
+
+With this change, we compose our **ListViewController** conformance to the UITableViewDatasource, UITableViewDelegate and UITableViewDataSourcePrefetching protocols in the following way: 
+
+First we show the `<UITableViewDataSource>` protocol conformance and forwarding: 
+
+```swift
+//Before 
+public override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+			let controller = cellController(forRowAt: indexPath)
+			return controller.tableView(tableView, cellForRowAt: indexPath)
+}
+//After
+public override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+    let datasource = cellController(forRowAt: indexPath).dataSource
+    return datasource.tableView(tableView, cellForRowAt: indexPath)
+}
+```
+
+We can see how we forward the generic `cellForRowAt(_:)` method from our **ListViewController** into the appropriate **CellController** clients (according to the table position) that implemented the desired **datasource** ( which is always necessary for all clients, for it to be possible to display information on the tableview.)
+
+
+
+Following, we see the conformance to the `<UITableViewDataSourcePrefetching>` protocol, which is not implemented by all the **CellController** clients , for example **ImageCommentCellController** does not implement this protocol, for which case the forwarding wouldn't execute, since the client's **datasourcePrefetching** property would be `nil`. 
+
+```swift
+//Before 
+public func tableView(_ tableView: UITableView, prefetchRowsAt indexPaths: [IndexPath]) {
+    indexPaths.forEach { indexPath in
+        let controller = cellController(forRowAt: indexPath)
+        controller.tableView(tableView, prefetchRowsAt: [indexPath])
+    }
+}
+//After
+public func tableView(_ tableView: UITableView, prefetchRowsAt indexPaths: [IndexPath]) {
+    indexPaths.forEach { indexPath in
+        let datasourcePrefetching = cellController(forRowAt: indexPath).dataSourcePrefetching
+        datasourcePrefetching?.tableView(tableView, prefetchRowsAt: [indexPath])
+    }
+}
+
+
+//Before
+public func tableView(_ tableView: UITableView, cancelPrefetchingForRowsAt indexPaths: [IndexPath]) {
+    indexPaths.forEach { indexPath in
+        let datasourcePrefetching = removeLoadingController(forRowAt: indexPath)?.dataSourcePrefetching
+        datasourcePrefetching?.tableView?(tableView, cancelPrefetchingForRowsAt: [indexPath])
+    }
+}
+//After
+public func tableView(_ tableView: UITableView, cancelPrefetchingForRowsAt indexPaths: [IndexPath]) {
+    indexPaths.forEach { indexPath in
+        let datasourcePrefetching = cellController(forRowAt: indexPath).dataSourcePrefetching
+        datasourcePrefetching?.tableView?(tableView, cancelPrefetchingForRowsAt: [indexPath])
+    }
+}
+```
+
+We can see how in the previous case, _every_ **CellController** had to be able to forward the events because they all depended on the `<UITableViewDatasourcePrefetching>` protocol, but now, if the client has its `dataSourcePrefetching` property set to nil, no forwarding will be executed.
+
+
+
+Finally we see the conformance to the `<UITableViewDelegate>` protocol, which is the protocol in charge of notifying about events that happened on the UI so that something can be done when they do. One such methods is the `didSelectRowAt(_:)`, which notifies when a tableView row has been tapped and allows for logic to be run on such cases. At this point we are not making use of this method, but we are making use of the `didEndDisplaying(_:)` method, that notifies the clients when the cells are out of view bounds so that some action can be taken:
+
+
+
+```swift
+//Before
+public override func tableView(_ tableView: UITableView, didEndDisplaying cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+    let controller = removeLoadingController(forRowAt: indexPath)
+    controller?.tableView?(tableView, didEndDisplaying: cell, forRowAt: indexPath)
+}
+//After
+public override func tableView(_ tableView: UITableView, didEndDisplaying cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+    let delegate = removeLoadingController(forRowAt: indexPath)?.delegate
+    delegate?.tableView?(tableView, didEndDisplaying: cell, forRowAt: indexPath)
+}
+```
+
+We can see again, in the same fashion as with the previous conformances, how we obtain the delegate, should our **CellController** implement it, and forward the `didEndDisplaying(_:)` action to it, instead of making all of our **CellControllers** conform to all the protocols, which they might not need.
+
+```swift
+private func cellController(forRowAt indexPath: IndexPath) -> CellController {
+    let controller = tableModel[indexPath.row]
+    loadingControllers[indexPath] = controller
+    return controller
+}
+
+private func removeLoadingController(forRowAt indexPath: IndexPath) -> CellController? {
+    let controller = loadingControllers[indexPath]
+    loadingControllers[indexPath] = nil
+    return controller
+}
+```
+
+For clarity,the helper methods used in the mentioned in the cases above is shown in this code snippet. We see the way in which the neccesary **cellController** for the indexPath is fetched, and how it is removed.
+
+
+
+
+
+By making these changes to our code, the Cells of our table view need only be conformant to the **CellController** struct, which consists of the three protocol properties, which are the ones that **ListViewController** needs to forward the tableview events generated by the tableview delegate protocol and the ones that need implementation from the prefetching and datasource protocols.
+
+If in the future, further methods were needed from these protocols/delegate it would just suffice to add the new case and forward the events.
 
 
 
