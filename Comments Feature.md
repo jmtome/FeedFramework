@@ -866,9 +866,49 @@ So, as always, we start with a test, in this case with snapshot tests, where we 
 
 
 
+Analyzing the methods declared by the `<CellController>` protocol : 
+
+```swift
+public protocol CellController {
+    func view(in tableView: UITableView) -> UITableViewCell
+    func preload()
+    func cancelLoad()
+}
+```
 
 
 
+Its possible to arrive to the conclusion that they look pretty similar to that of the methods established by the protocols: `<UITableViewDelegate>`, `<UITableViewDatasource>` and `<UITableViewDatasourcePrefetching>` : 
+
+
+
+```swift
+//UITableViewDatasource
+func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell
+func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int
+//Among others...
+
+//UITableViewDatasourcePrefetching
+func tableView(_ tableView: UITableView, prefetchRowsAt indexPaths: [IndexPath])
+func tableView(_ tableView: UITableView, cancelPrefetchingForRowsAt indexPaths: [IndexPath])
+//Among others...
+
+//UITableViewDelegate
+func tableView(_ tableView: UITableView, didEndDisplaying cell: UITableViewCell, forRowAt indexPath: IndexPath)
+//Among others...
+```
+
+
+
+So by this logic, we will remove the protocols we gave to the `<CellController>`, and make it a typealias conforming to these other protocols.
+
+```swift
+public typealias CellController = UITableViewDataSource & UITableViewDelegate & UITableViewDataSourcePrefetching
+```
+
+This way, we get the functionality we want, in a way that is harmonic with the pre-existing protocols. This way we can easily make our specific **FeedImageCellController** and **ImageCommentCellController** work in harmony with the generic **ListViewController**, by simply forwarding the generic tableView events happening in the generic **ListViewController** to the appropriate implementation, as needed.
+
+Doing this allows us to further decouple other modules from the Shared UI Module.
 
 
 
