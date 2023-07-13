@@ -1233,9 +1233,99 @@ So, what we will do now is: we will compose the **Comments Scene** in the Compos
 
 As usual we start by creating tests, then creating types, then creating behaviour. First thing we do is copy the already existing **FeedUIIntegrationTests** into the new **CommentsUIIntegrationTests** and we start modifying our code bit by bit. In an analogous way we copy our **FeedUIComposer** into a **CommentsUIComposer** and alongside the tests we start changing the code slowly to reflect our goal.
 
+Our CommentsUIComposer has the following look:
+
+```swift
+public final class CommentsUIComposer {
+    private init() {}
+    
+    private typealias CommentsPresentationAdapter = LoadResourcePresentationAdapter<[ImageComment], CommentsViewAdapter>
+    
+    public static func commentsComposedWith(
+        commentsLoader: @escaping () -> AnyPublisher<[ImageComment], Error>
+    ) -> ListViewController {
+        let presentationAdapter = CommentsPresentationAdapter(loader: commentsLoader)
+        
+        let commentsController = makeCommentsViewController(title: ImageCommentsPresenter.title)
+        commentsController.onRefresh = presentationAdapter.loadResource
+        
+        presentationAdapter.presenter = LoadResourcePresenter(
+            resourceView: CommentsViewAdapter(controller: commentsController),
+            loadingView: WeakRefVirtualProxy(commentsController),
+            errorView: WeakRefVirtualProxy(commentsController),
+            mapper: { ImageCommentsPresenter.map($0) })
+        
+        return commentsController
+    }
+    
+    private static func makeCommentsViewController(title: String) -> ListViewController {
+        let bundle = Bundle(for: ListViewController.self)
+        let storyboard = UIStoryboard(name: "ImageComments", bundle: bundle)
+        let controller = storyboard.instantiateInitialViewController() as! ListViewController
+        controller.title = title
+        return controller
+    }
+}
+```
+
+With
+
+```swift
+final class CommentsViewAdapter: ResourceView {
+    private weak var controller: ListViewController?
+    
+    init(controller: ListViewController) {
+        self.controller = controller
+    }
+    
+    func display(_ viewModel: ImageCommentsViewModel) {
+        controller?.display(viewModel.comments.map { viewModel in
+            CellController(id: viewModel, ImageCommentCellController(model: viewModel))
+        })
+    }
+}
+```
 
 
 
+## Check for deallocation of the Resources
+
+One important thing that we have to ensure is that we dont leak any memory when the user navigates back, and that includes properly cancelling all the comment load requests in progress. 
+
+When we navigate back from the ViewController, the whole Object Graph will be deallocated, because the only thing that holds it in memory is the viewcontroller being in the view hierarchy, in the stack. So in principle it should automatically cancel the requests when this happens, since our **LoadResourcePresentationAdapter** class holds a reference to the **cancellable** when it is running a request and when the adapter is deallocated the cancellable is also deallocated and it calls the Combine`cancel()` method when the AnyCancellable is deinitialized.
+
+So, as long as we don't have any memory leaks this process operation should be cancelled automatically when the object graph is deallocated, and we already have proved that it is deallocated because we have the `trackForMemoryLeaks` in the tests.
+
+But if we want to prove this, we can add one more test. Our goal is to test that before we make our SUT nil, the number of times that the cancel method was called is exactly 0, and after we make it nil, (it gets deallocated), the number of times that the cancel method is called is exactly 1:
+
+```swift
+func test_deinit_cancelsRunningRequest() {
+    var cancelCallCount = 0
+    
+    var sut: ListViewController?
+    
+    autoreleasepool {
+        sut = CommentsUIComposer.commentsComposedWith(commentsLoader: {
+            PassthroughSubject<[ImageComment], Error>()
+                .handleEvents(receiveCancel: {
+                    cancelCallCount += 1
+                }).eraseToAnyPublisher()
+        })
+        
+        sut?.loadViewIfNeeded()
+    }
+    
+    XCTAssertEqual(cancelCallCount, 0)
+    
+    sut = nil
+    
+    XCTAssertEqual(cancelCallCount, 1)
+}
+```
+
+
+
+We need to use the `autoreleasepool`, because ListViewController is being kept referenced in memory by the auto relase pool as an autoreleased object that is kept until the next cycle because probable this test is running on its autorelease pool, and it gets dereferenced after the method returns, but since we need to make sure it works before, we use autoreleasepool to create our own autoreleasepool to hold our object locally.
 
 
 
