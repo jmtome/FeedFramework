@@ -20,7 +20,9 @@ final class FeedViewAdapter: ResourceView {
         self.imageLoader = imageLoader
     }
     
-    func display(_ viewModel: FeedViewModel) {
+    public typealias ResourceViewModel = FeedViewModel
+    
+    func display(_ viewModel: ResourceViewModel) {
         controller?.display(viewModel.feed.map { model in
             let adapter = ImageDataPresentationAdapter(loader: { [imageLoader] in
                 imageLoader(model.url)
@@ -36,7 +38,7 @@ final class FeedViewAdapter: ResourceView {
                 errorView: WeakRefVirtualProxy(view),
                 mapper: UIImage.tryMake)
             
-            return CellController(view)
+            return CellController(id: model, view)
         })
     }
 }
