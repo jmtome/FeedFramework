@@ -1180,8 +1180,8 @@ func display(_ viewModel: ResourceViewModel) {
 ### Goal: 
 
 - [x] Display a List of comments when the user taps on an image in the feed.
-- [ ] At all times , the user should have a back button to return to the feed screen.
-- [ ] Cancel any running comments API requests when the user navigates back.
+- [x] At all times , the user should have a back button to return to the feed screen.
+- [x] Cancel any running comments API requests when the user navigates back.
 - [ ] Integration tests
 - [ ] Acceptance tests
 
@@ -1325,7 +1325,104 @@ func test_deinit_cancelsRunningRequest() {
 
 
 
-We need to use the `autoreleasepool`, because ListViewController is being kept referenced in memory by the auto relase pool as an autoreleased object that is kept until the next cycle because probable this test is running on its autorelease pool, and it gets dereferenced after the method returns, but since we need to make sure it works before, we use autoreleasepool to create our own autoreleasepool to hold our object locally.
+We need to use the `autoreleasepool`, because ListViewController is being kept referenced in memory by the auto relase pool as an autoreleased object that is kept until the next cycle because probable this test is running on its autorelease pool, and it gets dereferenced after the method returns, but since we need to make sure it works before, we use autoreleasepool to create our own autoreleasepool to hold our object locally. **autoreleasepool** comes from old Objective-C runtime, and its not really needed in Swift, since Swift relies on ARC, which is a deterministic way to count memory references. The only reason to use it is in cases where everything else has failed but we can still see the object leaked in the memory graph. In this case it probably got autoreleased captured since the way of instantiating viewcontrollers from storyboards/xibs still relies on underlying uikit code that was made in objective c.
+
+What happens here is that, the reference release only gets invocated after our test finishes, in the tearDown method, AFTER our `trackForMemoryLeaks` method has been executed, that is why if we dont use the **autoreleasepool** to capture our object, our memory leak tracker still finds it leaking.
+
+
+
+## Navigating to the selected FeedImage comments
+
+Next step is to navigate to the comments' section of the image the user selects (taps). To do this, the most basic approach is that we need to implement `<UITableViewDelegate>` protocol in our **ListViewController** and implement the `tableView(:didSelectRowAt: indexPath)` , to execute the navigation we are interested in. 
+
+As we did before, the idea is to forward **ListViewController's** event to the appropriate specific **CellController** so that each specific class/client/controller can implement `tableView(:didSelectRowAt:indexPath)` and run whatever piece of code we want to. In this case, our **FeedImageCellController** will of course implement the tableViewdelegate's needed methods, and it will need to execute code to the navigation. This will be done by executing a closure handler :
+
+```swift
+private let selection: () -> Void
+```
+
+that will be executed whenever a cell is tapped on by the user. 
+
+As we mentioned before, in order not to couple any of the modules, all the navigation logic and module interaction is done in the **Composition** Root, where both the **FeedUIComposer** and the **ImageCommentsUIComposer** live. 
+
+This means that we will inject the `selection: () ->Void` closure into the **FeedImageCellController** at the moment of composition in the Composition Root.
+
+
+
+As usual, to develop this, we begin with a test inside the FeedUIIntegrationTests, our goal is to test that selecting an image notifies the selector handle:
+
+```swift
+func test_imageSelection_notifiesHandler() {
+    let image0 = makeImage()
+    let image1 = makeImage()
+    var selectedImages = [FeedImage]()
+    let (sut, loader) = makeSUT(selection: { selectedImages.append($0) })
+    
+    sut.loadViewIfNeeded()
+    loader.completeFeedLoading(with: [image0, image1], at: 0)
+    
+    sut.simulateTapOnFeedImage(at: 0)
+    XCTAssertEqual(selectedImages, [image0])
+    
+    sut.simulateTapOnFeedImage(at: 1)
+    XCTAssertEqual(selectedImages, [image0, image1])
+}
+```
+
+to carry out this test we will have to modify step by step the required code and add what's needed. The idea here is that by stablishing what we want to achieve, we can then make it happen.
+
+
+
+For starters, we need to implement the UITableView's delegate method `tableView(_: didSelectRowAt: indexPath)` in the **ListViewController**, and in the same fashion as with the rest of the delegate/protocol/datasource methods described in the previous chapters, this implementation looks like:
+
+```swift
+public override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+		let delegate = cellController(at: indexPath)?.delegate
+		delegate?.tableView?(tableView, didSelectRowAt: indexPath)
+}
+```
+
+We get the CellController corresponding to the indexPath, and should it conform to UITableViewDelegate, it will be forwarded the `tableView(_: didSelectRowAt: indexPath)` method.
+
+
+
+Next, we have to implement `tableView(_: didSelectRowAt: indexPath)` in **FeedImageCellController** to receive the forwarded delegate methods from **ListViewController**, and as said before, it will just execute the **selection handler** closure:
+
+```swift
+private let selection: () -> Void
+.......
+.......
+.......
+public func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+   selection()
+}
+```
+
+
+
+To finish this part, we modify the corresponding **FeedUIComposer**, and **FeedViewAdapter** classes, to take in a selection handler parameter in their initializers.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

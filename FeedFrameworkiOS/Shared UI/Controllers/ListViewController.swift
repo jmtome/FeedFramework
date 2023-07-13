@@ -1,5 +1,8 @@
 //
-//  Copyright © 2019 Essential Developer. All rights reserved.
+//  ListViewController.swift
+//  FeedFrameworkiOS
+//
+//  Created by macbook on 30/06/2023.
 //
 
 import UIKit
@@ -64,6 +67,11 @@ public final class ListViewController: UITableViewController, UITableViewDataSou
     
     public func display(_ viewModel: ResourceErrorViewModel) {
         errorView.message = viewModel.message
+    }
+    
+    public override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        let delegate = cellController(at: indexPath)?.delegate
+        delegate?.tableView?(tableView, didSelectRowAt: indexPath)
     }
     
     public override func tableView(_ tableView: UITableView, didEndDisplaying cell: UITableViewCell, forRowAt indexPath: IndexPath) {
