@@ -1231,7 +1231,7 @@ So, what we will do now is: we will compose the **Comments Scene** in the Compos
 
 
 
-As usual we start by creating tests, then creating types, then creating behaviour.
+As usual we start by creating tests, then creating types, then creating behaviour. First thing we do is copy the already existing **FeedUIIntegrationTests** into the new **CommentsUIIntegrationTests** and we start modifying our code bit by bit. In an analogous way we copy our **FeedUIComposer** into a **CommentsUIComposer** and alongside the tests we start changing the code slowly to reflect our goal.
 
 
 
