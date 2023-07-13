@@ -1175,5 +1175,71 @@ func display(_ viewModel: ResourceViewModel) {
 
 
 
+## Composition and Navigation
+
+### Goal: 
+
+- [x] Display a List of comments when the user taps on an image in the feed.
+- [ ] At all times , the user should have a back button to return to the feed screen.
+- [ ] Cancel any running comments API requests when the user navigates back.
+- [ ] Integration tests
+- [ ] Acceptance tests
+
+-----------
+
+Taking a look at the diagram:
+
+![image-20230713132325382](/Users/macbook/Library/Application Support/typora-user-images/image-20230713132325382.png)
+
+We've finished implementing all the layers, API, Presentation, UI and the data model, so now we need to plug the feed UI with the comments UI.
+
+
+
+One way to approach this is the traditional approach, which is pushing the comments UI directly: 
+
+<img src="/Users/macbook/Library/Application Support/typora-user-images/image-20230713132446197.png" alt="image-20230713132446197" style="zoom:50%;" />
+
+
+
+The problem is that the Comments scene is quite complex and its comprised by multiple layers (api/presentation/ui), so the **Feed UI** would have to know how to integrate all these layers to be able to create the Comments UI Object Graph
+
+<img src="/Users/macbook/Library/Application Support/typora-user-images/image-20230713132615721.png" alt="image-20230713132615721" style="zoom:50%;" />
+
+For simple UI transitions that don't require this kind of composition of dependencies, just pushing a viewcontroller within another works well, there is no problem with that, for example if our **FeedImageViewModel** already had access to all the comments (via a `comments: [ImageCommentViewModel]` property) and we were using a **FeedViewController** and we selected a cell, we could use `didSelect(rowAt)` to navigate to the **ImageCommentsViewController** , and to do that we could even show the API method `show(_ VC: sender)` which is a way to present a new VC but the OS decides if it does it by pushing the VC or by presenting it, depending on context. 
+
+But this is not our case. If you are dealing with a complex object graph, and need to compose a bunch of layers/modules, it becomes cumbersome to do the simple procedure aforementioned. So we have to handle navigation somewhere else.
+
+Note that there are also cases that even with a simple transition you might not want to couple one VC to the next or have VC's having knowledge of what they are presenting (e.g **ListViewController** is generic and shouldnt know anything about anything it presents).
+
+
+
+Another very used way of navigation is by having it in the presentation logic (like for example in viper) but that is just the same as having it in the UI since, now the Presentation layer needs to know how to navigate to the next VC and/or all the other components, and our goal is to have completely de-coupled scenes without any dependencies between eachother.  
+
+
+
+### What we have at the moment 
+
+<img src="/Users/macbook/Library/Application Support/typora-user-images/image-20230713135647688.png" alt="image-20230713135647688" style="zoom:50%;" />
+
+Right now we have the **Feed Scene**, which is composed in the composition root by the **FeedUIComposer**. Now we also need to compose the Comments scene in the composition root, which means we now need to create a **ComponentsUIComposer** as well, that will instantiate the **Comments UI** with all the dependencies it needs. The Composition Root, is your place in the application where you compose all the modules together, and it's the place that allows you to keep all the modules decoupled. 
+
+As we can see in the diagram, it is **ONLY** the Composition Root that has dependencies on the modules, and not any other way. The modules have to be decoupled between eachother and **FROM** the **Composition Root.** 
+
+As a result, we want to handle navigation between modules inside the **Composition Root,** which already knows about the concrete implementations of said modules.
+
+So, what we will do now is: we will compose the **Comments Scene** in the Composition Root and then handle the navigation also in the **Composition Root.**
+
+
+
+As usual we start by creating tests, then creating types, then creating behaviour.
+
+
+
+
+
+
+
+
+
 
 
