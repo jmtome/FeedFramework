@@ -1786,7 +1786,7 @@ public class LoadMoreCell: UITableViewCell {
 }
 ```
 
-
+We call this label "messageLabel" and not "errorLabel", because while not it's designed to be used as an error label, it could be used as a way to display the last updated date, for example.
 
 
 
