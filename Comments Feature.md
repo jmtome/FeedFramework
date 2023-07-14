@@ -1513,11 +1513,13 @@ public enum ImageCommentsEndpoint {
 
 
 
+## Final App Architecture
+
+![architecture.png](https://github.com/essentialdevelopercom/essential-feed-case-study/blob/af32b39e45632467068f50f9cbbc2a0cb7c7f0b9/architecture.png?raw=true)
 
 
 
-
-
+Our Final diagram shows how we managed to keep our modules separated and decoupled from eachother. Everything happens in the Composition Root, which is our **SceneDelegate**.
 
 
 
