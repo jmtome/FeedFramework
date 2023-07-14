@@ -1479,6 +1479,36 @@ func configureWindow() {
 
 
 
+### Cleaning up the API Endpoints
+
+To clean up the API Endpoints we create two API Files inside the Feed API and Image Comments API modules:
+
+```swift
+//FeedEndpoint
+public enum FeedEndpoint {
+    case get
+    
+    public func url(baseURL: URL) -> URL {
+        switch self {
+        case .get:
+            return baseURL.appendingPathComponent("/v1/feed")
+        }
+    }
+}
+
+//ImageCommentsEndpoint
+public enum ImageCommentsEndpoint {
+    case get(UUID)
+    
+    public func url(baseURL: URL) -> URL {
+        switch self {
+        case let .get(id):
+            return baseURL.appendingPathComponent("/v1/image/\(id)/comments")
+        }
+    }
+}
+```
+
 
 
 
