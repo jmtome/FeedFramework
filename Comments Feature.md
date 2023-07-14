@@ -1525,6 +1525,209 @@ Our Final diagram shows how we managed to keep our modules separated and decoupl
 
 
 
+# Pagination Methods
+
+Now that the basic project is done, we will delve into the different pagination strategies, both to update the UI and to fetch and save the paginated data.
+
+Things that we will see:
+
+- [x] Common Pagination Methods.
+
+- [ ] Pagination UI/UX best practices
+
+- [ ] How to paginate linear content from an API
+
+- [ ] How to cache page results
+
+  
+
+### Goals 
+
+- [ ] Layout
+
+- [ ] Infinite Scroll Experience
+
+  - [ ] Trigger "Load more" action on scroll to bottom
+    - [ ] Only if there are more items to load
+    - [ ] Only if not already loading
+
+  - [ ] Show loading indicator while loading
+  - [ ] Show error message on failure
+    - [ ] Tap on error to retry
+
+
+
+## Common Pagination Methods
+
+### Limit/Offset or Page-Based
+
+This pagination type requires you to provide a `limit` of items per page, and then you go page by page.
+
+```http
+/feed?limit={limit}&page=[page]
+```
+
+
+
+For example executing `/feed?limit=2&page=1` will bring us **itemA** and **itemB**, and subsequently if we execute `/feed?limit=2&page=2` we will get **itemC** and **itemD**. We could also change the limit, for example to 4, and get all four items in a single request `/feed?limit=4&page=1`.
+
+#### Pros 
+
+- Easy to implement in the backend
+- Supports random access to pages 
+
+#### Cons 
+
+- Inefficient for large offsets (few hundred/thousands)
+
+- Inconsistent paging (because the pages' content isn't fixed, and it can happen that after we start requesting paginated items, new items are added to the dataset and that shifts the items out of position making the client and server out of sync.) :
+
+  **Example**: We requested like shown before `/feed?limit=2&page=1` for page 1, then `/feed?limit=2&page=2` for page 2, and we got items A,B,C,D, then, before requesting for page 3, one new item X is added, meaning that when requesting `/feed?limit=2&page=3`, instead of getting back items E,F, we will get D,E, because the new item was added on top of page 1 and thus shifting all the items. This leads to inconsistencies like duplications and omissions, since we won't be getting item X and we will be getting a duplicate of item D.
+
+- Limit size must be constant while traversing pages
+
+- Not great for caching (due to its inconsistency)
+
+#### Good For
+
+- Small collections of data
+- Short-lived content (seconds/minutes)
+- Content that doesn't change as often
+- Discardable content (without caching)
+
+
+
+## Keyset based (aka Seek Method) (Will implement this here.)
+
+In this method you provide an `after_key` or a `before_key` to the backend, aswell as an item limit `limit`, where both the **after/before** keys make reference to the items identifiers:
+
+```html
+/feed?limit={limit}&after_key={itemX.key}  or  /feed?limit={limit}&before_key={itemX.key}
+```
+
+For example, if we execute: `/feed?limit=2`, we would get itemA, itemB, then we execute: `/feed?limit=2&after_key={itemB.key}`, we will get itemC and itemD, if after that we execute: `/feed?limit=3&after_key={itemD.key}` we would get tambien itemE, itemF and itemG.
+
+But now, lets say that we made the first request `/feed?limit=2` and got itemA and itemB, but after that, an itemX is added to the dataset to the top, if we execute `/feed?limit=2&after_key={itemB.key}`, we will still get the correct results: itemC and itemD, because we are clearly asking that we want 2 items after the itemB. 
+
+So say that after this itemX was added we want to retrieve it, that is no problem, we just execute: `/feed?limit=2&before_key={itemA.key}` and we will get itemX and any other new item that was added.
+
+
+
+#### Pros
+
+- Fast
+- Consistent in both directions (after/before)
+- Allows consistent caching
+- Flexible limit size
+
+#### Cons 
+
+- Harder to implement in the backend
+- Doesn't support random access to pages (unless the id is a sequential number, although this is not something that is really needed)
+
+#### Good for 
+
+- Large collections of linear/sequential data
+- Long-lived content
+- Caching
+
+
+
+
+
+## Keyset Pagination, Implementation
+
+Today we will take an "outside-in" approach, which means, we will start by the UI instead of by the logic.
+
+First thing we want to add is the loading spinner at the bottom of the screen when the user is scrolling to get more feed items. (or error if it fails).
+
+One idea is that we could add it to the ListViewController directly, in the footer, and also adding another closure `onLoadMore` to execute code when this stage is reached. Adding this in the ListViewController would not be a bad thing, since pagination is a generic concept to any kind of list that needs pagination. However, we shouldn't be adding any feature specific functionality to the LVC, because it is a generic component. Because in this case, only the feed needs this functionality. If we added the feature in the generic LVC, then, when we dont use it, we would need to disable it, probably with a boolean, and all of this addition of side-effects and code that won't be used is not good. 
+
+Generic objects should only have features that all the implementing clients will use. Our goal is to add features without modifying existing code, being true to the open-close principle.
+
+
+
+We could inject a `loadMore` closure and loading gear to the **footer** in the in the **Feed Storyboard** since for example UIKit already provides us with a refresh mechanism. The problem is that when to show it and for how long and etcetera requires application logic which can't happen in Storyboards, so we would have to add this logic in the LVC and we don't want to do that.
+
+What we could do, though is make the whole spinning mechanism to load more data as a **CellController** cell, and inject it to the ListViewController so the LVC doesn't need to know about these changes. Basically what we do is create a custom cell that conforms to the **CellController** type that we populate our LVC with, and just add it always in the last position.
+
+
+
+To test-drive this idea, we will create a new FeedSnapshot test to test this, and start building up our CellController cell. The idea is to check that we are successfully displaying our new cell in the tableview.
+
+
+
+For this, we will need to create both a **LoadMoreCellController** and a **LoadMoreCell**. The **LoadMoreCellController** will implement the datasource protocols from tableView to create the **LoadMoreCell**, in the `tableView(_:cellForRowAt: indexPath)` . The **LoadMoreCellController** must also implement the **ResourceLoadingView**, since we want it to start showing the spinner when our **ResourceLoadingViewModel** is loading. 
+
+Also, our **LoadMoreCellController**, will hold a non-reusable cell, therefore there is no need to dequeue it from the tableview, and we can define it directly as a constant inside the controller.
+
+Regarding the **LoadMoreCell** it will only contain a UIActivityIndicatorView, which will be centered inside the **contentView** and it will hold a public `isLoading` property with a getter and a setter to either get the loading status or to set the spinner to start/stop rotating.
+
+```swift
+public class LoadMoreCell: UITableViewCell {
+    private lazy var spinner: UIActivityIndicatorView = {
+        let spinner = UIActivityIndicatorView(style: .medium)
+        contentView.addSubview(spinner)
+        
+        spinner.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            spinner.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            spinner.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            contentView.heightAnchor.constraint(greaterThanOrEqualToConstant: 40)
+        ])
+        
+        return spinner
+    }()
+    
+    public var isLoading: Bool {
+        get { spinner.isAnimating }
+        set { 
+            if newValue {
+                spinner.startAnimating()
+            } else {
+                spinner.stopAnimating()
+            }
+        }
+    }
+}
+```
+
+
+
+And the **LoadMoreCellController** :
+
+```swift
+public class LoadMoreCellController: NSObject, UITableViewDataSource {
+    private let cell = LoadMoreCell()
+    
+    public func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        1
+    }
+    
+    public func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        cell
+    }
+}
+
+extension LoadMoreCellController: ResourceLoadingView {
+    public func display(_ viewModel: ResourceLoadingViewModel) {
+        cell.isLoading = viewModel.isLoading
+    }
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
