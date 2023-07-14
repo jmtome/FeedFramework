@@ -1790,13 +1790,84 @@ We call this label "messageLabel" and not "errorLabel", because while not it's d
 
 
 
+### Paging Implementation
+
+#### UI Integration
+
+Now that the UI components are ready, we have to test them in integration to make sure we trigger reloadRequest when we scroll to the bottom of the scrollView, but we should only trigger it after loading the first set of items and if there are more items to load, but how can we know if we've loaded the first set of items and if there are more items to load?
+
+Looking at the FeedUIComposer, we see that the result we get from the **FeedLoader** is an array of **FeedImage**, so we can say that if we receive a first set of items, we could load more items. but how can we know if there are more items to load?
+
+Since nothing in the FeedImage model can tell us this, ideally we need a new type that has information about the both the data we need and about pagination. For this, we make a new  type that takes in a generic <Item> , **PaginatedFeed<Item>**, which will contain an array of Item, representing the data we got back from the network request, and an optional `loadMore` closure, that if it isnt nil, it means we have more items to load. 
+
+This way we decouple the UI from pagination details, the UI only has a closure for loading the next page, but it doesnt know which logic or algorithm for pagination is going on behind the scenes, meaning it doesn't care about what kind of pagination is happening, allowing us to change the pagination if we need/want to, without breaking our UI composition. Because of this, caching is much easier aswell, because it's not driven by the UI. Normally we see pagination where the caching strategy is driven by the UI and this can lead to problems, of coupling the UI with the algorithm in use and the caching. 
+
+This way the UI doesn't need to know how our feed data was loaded, which algorithm was used, it just knows that if there is more it just calls `loadMore` closure to which we pass nothing and we expect a result at some point.
+
+```swift
+struct Paginated<Item> {
+    let items: [Item]
+    let loadMore: (() -> AnyPublisher<Paginated<Item>, Error>)?
+}
+```
+
+This way we keep traversing from one page to the other and other, and other, until we got all the pages.
+
+Another benefit of this approach is that the UI doesnt need to know when to append new data and how to deal with duplication, it's up to the clients that create the pages, to deal with the de-duplication, (if using page-based pagination).
 
 
 
+Pagination is an API specific detail, Ideally we would want to always have every collection of items available in memory at all times, it just happens that we need to load a little bit at a time because of resource limitations, that is an API Infrastructure detail. So we can move this Paginated data model type into the Shared API module. But, it is referencing Combine, which means that we are coupling the shared API Module with Combine, which would make every client of the Shared API module also depend on Combine, maybe we are happy doing this, but we could instead use **Closure-Based-Loading** , since closures are native first-class citizens in swift. 
+
+So what we do is to create a typealias with a  `public typealias LoadMoreCompletion = Result<Paginated<Item>,Error> -> Void` and we make our loadMore closure take in an escaping `LoadMoreCompletion` closure as argument, and return Void:
+
+```swift
+import Foundation
+
+public struct Paginated<Item> {
+    public typealias LoadMoreCompletion = (Result<Self, Error>) -> Void
+
+    public let items: [Item]
+    public let loadMore: ((@escaping LoadMoreCompletion) -> Void)?
+
+    public init(items: [Item], loadMore: ((@escaping LoadMoreCompletion) -> Void)? = nil) {
+        self.items = items
+        self.loadMore = loadMore
+    }
+}
+```
+
+This way we do not need our clients to depend on Combine anymore. (maybe our clients are using older ios versions where combine is not available).
+
+This doesn't mean we cant use Combine anymore, we just compose it in the Composition root using some combine helpers that will convert this closure-based approach into a publisher.
+
+This **Paginated<Item>** type provides us what we need: a way of knowing if there are more items to load.
 
 
 
+Now we need to replace all the parts of the codebase that refer to arrays of **FeedImage** to return **Paginated<FeedImage>** instead of **Array<FeedImage>** , as a result we find that in the FeedUIComposer, at the moment of creating the presentation adapter's presenter we dont need to use the **FeedPresenter.map** method, since all that mapping does is wrapping the **Array<FeedImage>** into the **FeedViewModel** , which isn't necessary now since our types have been changed, therefore we can pass the **Paginated<FeedImage>** directly to the adapter.
 
+
+
+Inside our SceneDelegate (Composition Root), we need to modify the `makeRemoteFeedLoaderWithLocalFallback()` method, so that it returns our new wrapped type **Paginated<FeedImage>** :
+
+
+
+```swift
+private func makeRemoteFeedLoaderWithLocalFallback() -> AnyPublisher<Paginated<FeedImage>, Error> {
+    let url = FeedEndpoint.get.url(baseURL: baseURL)
+    
+    return httpClient
+        .getPublisher(url: url)
+        .tryMap(FeedItemsMapper.map)
+        .caching(to: localFeedLoader)
+        .fallback(to: localFeedLoader.loadPublisher)
+        .map {
+            Paginated(items: $0)
+        }
+        .eraseToAnyPublisher()
+}
+```
 
 
 
