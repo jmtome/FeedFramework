@@ -1331,7 +1331,7 @@ What happens here is that, the reference release only gets invocated after our t
 
 
 
-## Navigating to the selected FeedImage comments
+## Registering user touch selection of the CellController Cells
 
 Next step is to navigate to the comments' section of the image the user selects (taps). To do this, the most basic approach is that we need to implement `<UITableViewDelegate>` protocol in our **ListViewController** and implement the `tableView(:didSelectRowAt: indexPath)` , to execute the navigation we are interested in. 
 
@@ -1404,7 +1404,78 @@ To finish this part, we modify the corresponding **FeedUIComposer**, and **FeedV
 
 
 
+## Showing Comments on Image selection
 
+The next step is to display on screen, the comments for the selected image. Which means that it's time to compose the navigation and behavior in the **Composition Root** (Our **SceneDelegate**). 
+
+As per usual we start with a test and its related code, and we build-up the neccesary code. 
+
+In our **Composition Root** (**SceneDelegate**), we implement the `selection handler` closure that specifies what to do when a image cell is tapped: 
+
+We mentioned earlier that the handler executed in the **FeedImageCellController** is a closure that takes in no parameters and returns no parameters,`selection: () -> Void`, and that is correct, however at the composition root stage, and given that the **FeedImageCellController** is instanciated with the **FeedUIComposer** using the **FeedViewAdapter** , our `selection handler`has a different signature: 
+
+```swift
+selection: (FeedImage) -> Void 
+```
+
+Which is then _adapted_ by the **FeedViewAdapter** into the required closure that the `tableView(_: didSelectRowAt: indexPath)`executes, inside the **FeedImageCellController**.
+
+
+
+So, the method to be invoked when a user taps the desired Cell is:
+
+```swift
+private func showComments(for image: FeedImage) {
+		let url = baseURL.appendingPathComponent("/v1/image/\(image.id)/comments")
+		let comments = CommentsUIComposer.commentsComposedWith(commentsLoader: makeRemoteCommentsLoader(url: url))
+        navigationController.pushViewController(comments, animated: true)
+}
+```
+
+Which as can be seen has the same signature as the **selection** handler that we need. For this composition we also need to make the `makeRemoteCommentsLoader(url:)` method:
+
+```swift
+private func makeRemoteCommentsLoader(url: URL) -> () -> AnyPublisher<[ImageComment], Error> {
+		return { [httpClient] in
+           return httpClient
+               .getPublisher(url: url)
+               .tryMap(ImageCommentsMapper.map)
+               .eraseToAnyPublisher()
+		}
+}
+```
+
+That, in an analog way to the :
+
+```swift
+private func makeRemoteFeedLoaderWithLocalFallback() -> AnyPublisher<[FeedImage], Error>
+```
+
+Returns a publisher with the desired resource or error, that makes loader to make the network request. 
+
+
+
+Also, since the **FeedImageCellController** is the entry point screen in the view, it is only normal that we embed it inside a navigation controller and make that the rootViewController in our main window, inside the Composition Root (**SceneDelegate**)
+
+```swift
+private lazy var navigationController = UINavigationController(
+        rootViewController: FeedUIComposer.feedComposedWith(
+            feedLoader: makeRemoteFeedLoaderWithLocalFallback,
+            imageLoader: makeLocalImageLoaderWithRemoteFallback,
+            selection: showComments))
+            
+func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
+        guard let scene = (scene as? UIWindowScene) else { return }
+        
+        window = UIWindow(windowScene: scene)
+        configureWindow()
+}
+    
+func configureWindow() {
+		window?.rootViewController = navigationController
+		window?.makeKeyAndVisible()
+}
+```
 
 
 
