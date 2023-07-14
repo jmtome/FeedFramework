@@ -1,5 +1,5 @@
 //
-//  LoadMoreController.swift
+//  LoadMoreCellController.swift
 //  FeedFrameworkiOS
 //
 //  Created by macbook on 14/07/2023.
@@ -24,4 +24,10 @@ extension LoadMoreCellController: ResourceLoadingView {
     public func display(_ viewModel: ResourceLoadingViewModel) {
         cell.isLoading = viewModel.isLoading
     }
+}
+
+extension LoadMoreCellController: ResourceErrorView {
+    public func display(_ viewModel: ResourceErrorViewModel) {
+           cell.message = viewModel.message
+       }
 }
