@@ -1871,6 +1871,109 @@ private func makeRemoteFeedLoaderWithLocalFallback() -> AnyPublisher<Paginated<F
 
 
 
+Now that we have both the UI , the Pagination type and we have changed the instances of **Array<FeedImage>**  for **Paginated<FeedImage>**, we have to wire everything together.
+
+To begin, are going to implement integration tests, to make sure we got all the infinite scroll experience features covered.
+
+```swift
+ func test_loadMoreActions_requestMoreFromLoader() {
+			let (sut, loader) = makeSUT()
+			sut.loadViewIfNeeded()
+			loader.completeFeedLoading()
+    
+			XCTAssertEqual(loader.loadMoreCallCount, 0, "Expected no requests until load-more action")
+        
+			sut.simulateLoadMoreFeedAction()
+			XCTAssertEqual(loader.loadMoreCallCount, 1, "Expected load-more request")
+}
+```
+
+We add this test since what we want is that the loader spy loadMoreCallCount propety is only 1 after simulating a loadMoreFeedAction(). From here we start completing the code in order to make it pass.
+
+Here we have to pay special attention to the mock method: ` func simulateLoadMoreFeedAction()` , since we need to decide how to properly mock the behaviour of getting to the loadMore case. 
+
+We could keep track of the scrolling offset, but since we are using a CellController cell to display the loading spinner/ message, and we know that it will always be the last cell of the array, we can use the `willDisplay:cellForRowAt:indexPath` delegate method from UITableViewDelegate protocol, and track for the **LoadMoreCell**. 
+
+In order not to mix our **FeedImageCellController** cells with our **LoadMoreCell**, instead of appending our **LoadMoreCellController** to the bottom of our CellControllers array, what we are going to do is append it to the 0th position of the next section. 
+
+This way, we have a section with the FeedImages, a section with the LoadMore, etc. (But it could be done all in a single section without problem).
+
+our test helper method results: 
+
+```swift
+func simulateLoadMoreFeedAction() {
+			guard let view = cell(row: 0, section: feedLoadMoreSection) else { return }
+			let delegate = tableView.delegate
+			let index = IndexPath(row: 0, section: 1)
+			delegate?.tableView?(tableView, willDisplay: view, forRowAt: index)
+}
+```
+
+where `feedLoadMoreSection` is 1 (since the `feedImagesSection` was 0). The guard is added because the cell may not exist, because you may not be able to load more, because there is no more to load (although that could be fixed because if there is nothing more to load we could add a message), so we check that it exists and if it does, we trigger its appearance to simulate a loadMore action.
+
+For this procedure to work, we need to add UITableViewDelegate conformance to our LoadMoreCellController, and implement the `tableView(_: willDisplay cell: forRow at: indexPath)` , where we will execute a callback method. So we add a new `callback: () -> Void` property to our **LoadMoreCellController** that we will inject via initializer to our **LoadMoreCellController**
+
+Of course with this procedure we also have to append a new section into the feed with the **LoadMoreCellController**. The creation of the feed CellControllers is done in the **FeedViewAdapter**, inside the `display(_: Paginated<FeedImage>)` method.
+
+ What we need to do there is to append a new section to the array of CellControllers. To do this, we assign the mapping of the viewModel into the CellControllers to a property (which we were returning directly), and now we need to create a 
+
+```swift
+let loadMoreCellController = LoadMoreCellController({ 
+	viewModel.loadMore?( { _ in })
+})
+```
+
+ What this callback will do, is simply trigger the `loadMore` action from the viewModel (Where we will need to pass another closure to execute during the loadMore, which we will do later). 
+
+We also need to create the new section we mentioned before, composed by an array of CellControllers that will only contain one item, the loadMoreCellController: 
+
+```swift
+let loadMoreSection = [CellController(id: UUID(), loadMoreCellController)]
+```
+
+We can now either append the loadMoreSection to the feedSection by doing:
+
+```swift
+controller?.display(feed + loadMoreSection)	
+```
+
+The problem with this, is that by doing this everything is going to be in the first section (section 0) and that is not what we want, what we want is to have mutliple sections, for this, we need to modify our `ListViewController`'s   `display(_ cellControllers: [CellController])` to take in a variadic parameter and be able to call: 
+
+```swift
+controller?.display(feed, loadMoreSection)
+```
+
+
+
+Our new display method in  **ListViewController** is:  
+
+```swift
+public func display(_ sections: [CellController]...) {
+			var snapshot = NSDiffableDataSourceSnapshot<Int, CellController>()
+			sections.enumerated().forEach { section, cellControllers in
+					snapshot.appendSections([section])
+					snapshot.appendItems(cellControllers, toSection: section)
+			}
+			dataSource.apply(snapshot)
+}
+```
+
+We can see that we have made a change for the internal name of the arguments received, from "cellControllers" to "sections", and now we take in the array of array of cell controllers, and for each of them, we append them to the respective sections, section 0 for the feed cellControllers, and section 1 for the loadMoreCellController
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
