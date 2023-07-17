@@ -2057,7 +2057,75 @@ finally, we create our adapter's presenter using `self` as resource, since the a
 
 
 
+Now, we have to test that our spy loadMoreCallCount is successfully incrementing when we request more pages, either with success or with failure, but bearing in mind it isnt the last page, and if it is, it shouldn't increment the call count spy:
 
+```swift
+loader.completeLoadMore(lastPage: false, at: 0)
+sut.simulateLoadMoreFeedAction()
+XCTAssertEqual(loader.loadMoreCallCount, 2, "Expected request after load more completed with more pages")
+
+loader.completeLoadMoreWithError(at: 1)
+sut.simulateLoadMoreFeedAction()
+XCTAssertEqual(loader.loadMoreCallCount, 3, "Expected request after load more failure ")
+
+loader.completeLoadMore(lastPage: true, at: 2)
+sut.simulateLoadMoreFeedAction()
+XCTAssertEqual(loader.loadMoreCallCount, 3, "Expected no request after loading all pages")
+
+```
+
+
+
+While creating the method helpers to carry out this test, we realize that our Paginated Combine helper has a _closure-to-publisher_ converter, but it also needs a _publisher-to-closure_ one, for this, we add another init, that takes in a publisher and converts it into a closure, to pass it as argument to the Paginated type, so we need a bridge/mapping.
+
+So what we need to do is, call the publisher we are passing, subscribe to it using the **Subscribers.Sink** , receiving the completion (meaning the event ended streaming) and the received value (the success case). Usually, the completion means that it has either finished the iteration without success (but not necessarily with failure), or with failure, so we check for failure too. The finished mapping results:
+
+```swift
+init(items: [Item], loadMorePublisher: (() -> AnyPublisher<Self, Error>)?) {
+        self.init(items: items, loadMore: loadMorePublisher.map { publisher in
+            return { completion in
+                publisher().subscribe(Subscribers.Sink(receiveCompletion: { result in
+                    if case let .failure(error) = result {
+                        completion(.failure(error))
+                    }
+                }, receiveValue: { result in
+                    completion(.success(result))
+                }))
+            }
+        })
+    }
+```
+
+and our finished helper, that converts from closure to publisher and inits from publisher to closure is:
+
+```swift
+public extension Paginated {
+    init(items: [Item], loadMorePublisher: (() -> AnyPublisher<Self, Error>)?) {
+        self.init(items: items, loadMore: loadMorePublisher.map { publisher in
+            return { completion in
+                publisher().subscribe(Subscribers.Sink(receiveCompletion: { result in
+                    if case let .failure(error) = result {
+                        completion(.failure(error))
+                    }
+                }, receiveValue: { result in
+                    completion(.success(result))
+                }))
+            }
+        })
+    }
+    var loadMorePublisher: (() -> AnyPublisher<Self, Error>)? {
+        guard let loadMore = loadMore else { return nil }
+        
+        return {
+            Deferred {
+                Future(loadMore)
+            }.eraseToAnyPublisher()
+        }
+    }
+}
+```
+
+By using the `Subscribers.Sink` combine automatically manages the lifecycle and we dont need a Cancellable for the subscription, the subscription will be alive until it completes.
 
 
 
