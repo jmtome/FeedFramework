@@ -9,6 +9,18 @@ import Foundation
 import Combine
 import FeedFramework
 
+public extension Paginated {
+    var loadMorePublisher: (() -> AnyPublisher<Self, Error>)? {
+        guard let loadMore = loadMore else { return nil }
+        
+        return {
+            Deferred {
+                Future(loadMore)
+            }.eraseToAnyPublisher()
+        }
+    }
+}
+
 //Code Below allows us not to depend on our own abstractions like RemoteLoader, because we get it from free from Combine.
 public extension HTTPClient {
     typealias Publisher = AnyPublisher<(Data, HTTPURLResponse), Error>

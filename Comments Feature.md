@@ -1958,11 +1958,102 @@ public func display(_ sections: [CellController]...) {
 }
 ```
 
-We can see that we have made a change for the internal name of the arguments received, from "cellControllers" to "sections", and now we take in the array of array of cell controllers, and for each of them, we append them to the respective sections, section 0 for the feed cellControllers, and section 1 for the loadMoreCellController
+We can see that we have made a change for the internal name of the arguments received, from "cellControllers" to "sections", and now we take in the array of array of cell controllers, and for each of them, we append them to the respective sections, section 0 for the feed cellControllers, and section 1 for the loadMoreCellController.
+
+There is a problem though, what if the callback request fails?. As it stands now, it will only try again when the "willDisplay" method is fired again by the delegate, which will only happens when the cell is removed from the hierarchy and is then re-added. To solve this we could observe the scrolling events aswell, and trigger the callback while the cell is visible (**this will be explained later in this session**).
+
+On the previous test, there was something that we didn't test that we will test now, that is, if the request hasnt completed and another loadMore is triggered it shouldnt execute (this not incrementing the loadMoreCallCount in the spy). Initially this test fails which means that it's loading again and again when the loadMore triggers, this is not what we want.
+
+To do this we need to add a guard statement to our willDisplay delegate method implementation in LoadMoreCellController, so that it checks if the cell is loading, and if it is, not to execute the callback.
+
+```swift
+public func tableView(_ tableView: UITableView, willDisplay: UITableViewCell, forRowAt indexPath: IndexPath) {
+        guard !cell.isLoading else { return }
+        callback()
+}
+```
+
+
+
+Another thing that arose while doing these tests (and why tests are so important), is that we have never set `isLoading` property from the cell, because we never hooked up the methods with the cellcontroller.
+
+```swift
+extension LoadMoreCellController: ResourceLoadingView {
+    public func display(_ viewModel: ResourceLoadingViewModel) {
+        cell.isLoading = viewModel.isLoading
+    }
+}
+
+extension LoadMoreCellController: ResourceErrorView {
+    public func display(_ viewModel: ResourceErrorViewModel) {
+           cell.message = viewModel.message
+       }
+}
+```
+
+Meaning, we are implementing the display methods from the ResourceLoadingView and the ResourceErrorView protocols but we never call these methods, therefore our cell loading status isnt changing.
+
+This is because we never created a presentation adapter that will handle the resource loading. 
+
+For this, in the **FeedViewAdapter**, we need to create presentation adapter for the new page, and we can reuse the existing **LoadResourcePresentationAdapter**, but with a different type and name:
+
+```swift
+private typealias LoadMorePresentationAdapter = LoadResourcePresentationAdapter<Paginated<FeedImage>, FeedViewAdapter>
+```
+
+This presentation adapter will load **Paginated<FeedImage>** , and its View type will be a FeedViewAdapter because its loading a feed.
+
+To do this, since our Paginated type is decoupled from combine, we need to create a Combine adapter, in the CombineHelpers class: 
+
+```swift
+public extension Paginated {
+    var loadMorePublisher: (() -> AnyPublisher<Self, Error>)? {
+        guard let loadMore = loadMore else { return nil }
+        
+        return {
+            Deferred {
+                Future(loadMore)
+            }.eraseToAnyPublisher()
+        }
+    }
+}
+```
+
+This is the bridging from the closure that our `loadMore` from the **Paginated** type takes in, into the **AnyPublisher** that we need. 
+
+This way we can easily keep combine decoupled and have the helpers in the composition root.
+
+With this combine helper, we can now create our **LoadMorePresentationAdapter** with our `loadMorePublisher` , and use the adapter's loadResource to create our **LoadMoreCellController**: 
+
+```swift
+ guard let loadMorePublisher = viewModel.loadMorePublisher else {
+            controller?.display(feed)
+            return
+}
+let loadMoreAdapter = LoadMorePresentationAdapter(loader: loadMorePublisher)
+        
+let loadMore = LoadMoreCellController(callback: loadMoreAdapter.loadResource)
+```
 
 
 
 
+
+Here, we check that the loadPublisher method isnt nil, otherwise we display a single feed section in our ListViewController. If all is okay, we crate the adapter, and the loadMore cell controller:
+
+```swift
+loadMoreAdapter.presenter = LoadResourcePresenter(
+		resourceView: self,
+		loadingView: WeakRefVirtualProxy(loadMore),
+		errorView: WeakRefVirtualProxy(loadMore),
+		mapper: { $0 })
+        
+let loadMoreSection = [CellController(id: UUID(), loadMore)]
+        
+controller?.display(feed, loadMoreSection)
+```
+
+finally, we create our adapter's presenter using `self` as resource, since the adapter's resource is of the type **FeedViewAdapter**, and using our loadMore cell controller as both our loading and error view's. Since **FeedViewAdapter**'s ResourceViewModel is the same type as the adapter's presenter's recipient mapper, we simply pass the closure's captured value, as mapper. At this point it means we have both the needed sections to display on our **ListViewController** 
 
 
 
