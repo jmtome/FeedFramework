@@ -2179,6 +2179,66 @@ func test_tapOnLoadMoreErrorView_loadsMore() {
 
 This test helps us to create necessary code in the **LoadMoreCellController** , the method 'didSelectCellForRowAt' wasnt implemented. This implementation will have the same behaviour as 'willDisplayCellForRowAt', it will execute the passed closure that executes the load more action.
 
+**With this, we finish our UI.** Now we move to the API :cloud: Pagination.
+
+
+
+## API :cloud: , Pagination
+
+Now we have to implement the logic to properly handle the API pagination.
+
+- [ ] Load 10 items at the time using Keyset Pagination
+  - [ ] First: GET /feed?limit=10
+  - [ ] Load More: GET /feed?limit=10&after_id={last_id} 
+
+Right now, we are loading the whole dataset, whch is a bunch of images, the idea is to limit it using the pagination.
+
+We start with a test, testing that the `FeedEndpoint.get.url(baseURL:)` works as intended, by checking if the query of the created URL matches the query parameters we need regarding the limits:
+
+```swift
+XCTAssertEqual(received.query, "limit=10", "query")
+```
+
+We can also take this opportunity to add a couple of more tests for better feedback: 
+
+```swift
+XCTAssertEqual(received.scheme, "http", "scheme")
+XCTAssertEqual(received.host, "base-url.com", "host")
+XCTAssertEqual(received.path, "v1/feed", "path")
+XCTAssertEqual(received.query, "limit=10", "query")
+```
+
+This way we make sure that the **scheme**, **host**, **path** and **query** are all correct
+
+Rest assuredly, our test fails, because we have not implemented the **query** ,now we must make it pass.
+
+Right now our FeedEndpoint.get is returning a non-optional URL, we could return an optional, but that would break clients, the only way this could fail would be an programming error, since the baseURL is a parameter provided by the programmer, so, since this enum and its get method are merely programmer helpers, meaning they won't be used for a lot of users, then a failure would be the programmers fault, therefore it should fail as soon as possible to be easy to find the error. Now , on the other hand if we were writing an API or a public library , we would need to return an optional because we are not responsible for what the consumer of our api/framework is doing. 
+
+But for this case, force unwrapping the url is okay. Our final new get method is:
+
+```swift
+public enum FeedEndpoint {
+    case get
+    
+    public func url(baseURL: URL) -> URL {
+        switch self {
+        case .get:
+            let url = baseURL.appendingPathComponent("/v1/feed")
+            var components = URLComponents()
+            components.scheme = baseURL.scheme
+            components.host = baseURL.host
+            components.path = baseURL.path + "/v1/feed"
+            components.queryItems = [
+                URLQueryItem(name: "limit", value: "10")
+            ]
+            return components.url!
+        }
+    }
+}
+```
+
+
+
 
 
 
