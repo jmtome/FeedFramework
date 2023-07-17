@@ -2157,9 +2157,27 @@ func test_loadingMoreIndicator_isVisibleWhileLoadingMore() {
 
 
 
+Following the same procedure, we test for error messages on success and on error. Next step is to test if, on error, when we tap the **LoadMoreCell** , it loads more. Same as always we start with tests and its helpers
 
+```swift
+func test_tapOnLoadMoreErrorView_loadsMore() {
+    let (sut, loader) = makeSUT()
+    sut.loadViewIfNeeded()
+    loader.completeFeedLoading()
+    
+    sut.simulateLoadMoreFeedAction()
+    XCTAssertEqual(loader.loadMoreCallCount, 1)
+    
+    sut.simulateTapOnLoadMoreFeedError()
+    XCTAssertEqual(loader.loadMoreCallCount, 1)
+    
+    loader.completeLoadMoreWithError()
+    sut.simulateTapOnLoadMoreFeedError()
+    XCTAssertEqual(loader.loadMoreCallCount, 2)
+}
+```
 
-
+This test helps us to create necessary code in the **LoadMoreCellController** , the method 'didSelectCellForRowAt' wasnt implemented. This implementation will have the same behaviour as 'willDisplayCellForRowAt', it will execute the passed closure that executes the load more action.
 
 
 
