@@ -2606,7 +2606,74 @@ If we wanted to track the threshold not only when the view is visible or not we 
 
 
 
+### Fetch current items from cache when needed instead of keeping them in memory all the time
 
+ Right now we are keeping all the items in memory, and we keep appending into the items, like we see below:
+
+```swift
+private func makeRemoteLoadMoreLoader(items: [FeedImage], last: FeedImage?) -> AnyPublisher<Paginated<FeedImage>, Error> {
+    makeRemoteFeedLoader(after: last)
+        .map { newItems in
+            (items + newItems, newItems.last)
+        }.map(makePage)
+        .caching(to: localFeedLoader)
+}
+```
+
+but what if I dont want to keep everything in memory as I load the pages?. We can prevent this by loading the current items from the cache when needed only. So for this, we will remove the **items** property from the **makeRemoteLoadMoreLoader** method argument, and instead load the items from the cache:
+
+
+
+```swift
+private func makeRemoteLoadMoreLoader(last: FeedImage?) -> AnyPublisher<Paginated<FeedImage>, Error> {
+    makeRemoteFeedLoader(after: last)
+        .flatMap { [localFeedLoader] newItems in
+            localFeedLoader.loadPublisher().map { cachedItems in
+                (newItems, cachedItems)
+            }
+        }
+        .map { (newItems, cachedItems) in
+            (cachedItems + newItems, newItems.last)
+        }.map(makePage)
+        .caching(to: localFeedLoader)
+}
+```
+
+So now, instead of keeping the items in memory we just request them from the cache.
+
+By the way, using **flatMap** to combine two results into a tuple is the same thing as using a **zip** publisher, the result is exactly the same:
+
+```swift
+private func makeRemoteLoadMoreLoader(last: FeedImage?) -> AnyPublisher<Paginated<FeedImage>, Error> {
+    makeRemoteFeedLoader(after: last)
+        .zip(localFeedLoader.loadPublisher())
+        .map { (newItems, cachedItems) in
+            (cachedItems + newItems, newItems.last)
+        }.map(makePage)
+        .caching(to: localFeedLoader)
+}
+```
+
+
+
+We can also invert the order of the chain:
+
+```swift
+private func makeRemoteLoadMoreLoader(last: FeedImage?) -> AnyPublisher<Paginated<FeedImage>, Error> {
+    localFeedLoader.loadPublisher()
+        .zip(makeRemoteFeedLoader(after: last))
+        .map { (cachedItems, newItems) in
+            (cachedItems + newItems, newItems.last)
+        }.map(makePage)
+        .caching(to: localFeedLoader)
+}
+```
+
+and it still works.
+
+
+
+Doing this or not depends on whether you want to keep the items in memory or not, keeping them in memory will be quicker, but it all depends on the results and on what you want/need. (if we are working with thousands of items it may not be the best to keep them in memory, and better to just load them when eneded)
 
 
 
