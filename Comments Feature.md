@@ -2462,7 +2462,84 @@ Now, our tests are passing and the pages are being cached. Our cache doesnt need
 
 
 
+### Refactoring 
 
+Now that everthing is working, both cache and remote we will refactor the `makeRemoteLoadMoreLoader` and the `makeRemoteFeedLoaderWithLocalFallback` methods.
+
+First thing we will do is create a private helper method and extract all the map logic:
+
+```swift
+private func makePage(items: [FeedImage], last: FeedImage?) -> Paginated<FeedImage> {
+			Paginated(items: items, loadMorePublisher: last.map { last in
+			    { self.makeRemoteLoadMoreLoader(items: items, last: last) }
+			})
+}
+```
+
+Then we change our `makeRemoteFeedLoaderWithFallback` to :
+
+```swift
+private func makeRemoteFeedLoaderWithLocalFallback() -> AnyPublisher<Paginated<FeedImage>, Error> {
+    makeRemoteFeedLoader()
+        .caching(to: localFeedLoader)
+        .fallback(to: localFeedLoader.loadPublisher)
+        .map(makeFirstPage)
+        .eraseToAnyPublisher()
+}
+```
+
+Now we will modify our `makeRemoteLoadMoreLoader` helper by creating a "createPage" method:
+
+```swift
+private func makePage(items: [FeedImage], last: FeedImage?) -> Paginated<FeedImage> {
+			Paginated(items: items, loadMorePublisher: last.map { last in
+			    { self.makeRemoteLoadMoreLoader(items: items, last: last) }
+			})
+}
+```
+
+and now: 
+
+![image-20230718153356661](/Users/macbook/Library/Application Support/typora-user-images/image-20230718153356661.png)
+
+but we can make it even cleaner, we can make `makeFirstPage` call our `makePage` providing a last item:
+
+```swift
+private func makeFirstPage(items: [FeedImage]) -> Paginated<FeedImage> {
+    makePage(items: items, last: items.last)
+}
+```
+
+
+
+Now, to avoid having a lot of code we will create a new function `makeRemoteFeedLoader` to which we will extract the logic inside **makeRemoteLoadMoreLoader** :
+
+```swift
+ private func makeRemoteFeedLoader(after: FeedImage? = nil) -> AnyPublisher<[FeedImage], Error> {
+          let url = FeedEndpoint.get(after: after).url(baseURL: baseURL)
+
+          return httpClient
+              .getPublisher(url: url)
+              .tryMap(FeedItemsMapper.map)
+              .eraseToAnyPublisher()
+}
+```
+
+and then replacing in our `makeRemoteLoadMoreLoader`: 
+
+```swift
+private func makeRemoteLoadMoreLoader(items: [FeedImage], last: FeedImage?) -> AnyPublisher<Paginated<FeedImage>, Error> {
+			makeRemoteFeedLoader(after: last)
+			    .map { newItems in
+			        (items + newItems, newItems.last)
+			    }.map(makePage)
+			    .caching(to: localFeedLoader)
+}
+```
+
+Which significantly reduces the amount of lines and readability of the code and avoid nested closures, which we dont want.
+
+**CHECK ALL OF THIS CODE WHICH IS HARD, VIDEO 59, LAST 40 MINUTES OR SO**
 
 
 
