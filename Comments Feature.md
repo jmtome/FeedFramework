@@ -2568,11 +2568,39 @@ public func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPat
 
 and now it works and displays as expected.
 
+Next thing we want is to automatically load more items on scroll after error
 
 
 
+### Load More items after Load More error when the user scrolls
+
+So, when the user encounters an error, it's pretty common to keep scrolling imitating in a way the pull to refresh, so the idea is that on error, on a scroll it should try to load more on error. Right now what happens is that until the **LoadMoreCellController** cell is removed from the hierarchy, and reappears  this wont happen, because we are using **willDisplayCell** to trigger this reload, so we have to change that.
+
+What we can do to change this is use **Key-Value-Observers (KVO)**. 
+
+In the UITableViewDelegate method `willDisplayCell`, we will add:
+
+```swift
+ public func tableView(_ tableView: UITableView, willDisplay: UITableViewCell, forRowAt indexPath: IndexPath) {
+    reloadIfNeeded()
+    
+    offsetObserver = tableView.observe(\.contentOffset, options: .new) { [weak self] tableView, _ in
+        guard tableView.isDragging else { return }
+        
+        self?.reloadIfNeeded()
+    }
+}
+    
+public func tableView(_ tableView: UITableView, didEndDisplaying cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+       offsetObserver = nil
+}
+```
+
+So what we are doing is, we add an observer to the **contentOffset** key, and we check if the cell is being dragged, if it is, and it is not loading, we will trigger a reload (thats why we use a reloadIfNeeded), once the cell is about to go out of sight, in the `didEndDisplayingCell`,  we turn the observer off, by setting it to nil.
 
 
+
+If we wanted to track the threshold not only when the view is visible or not we could move the observation somewhere else, like in the `didScroll` method and maybe prefetch before the user reaches the **LoadMoreCellController**, 
 
 
 
