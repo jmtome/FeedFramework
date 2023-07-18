@@ -2677,6 +2677,10 @@ Doing this or not depends on whether you want to keep the items in memory or not
 
 
 
+This pagination with caching we developed are independant/ decoupled from the pagination method/algorithm, so we can change it from keyset to offset to whaterver without breaking other modules.
+
+
+
 
 
 
