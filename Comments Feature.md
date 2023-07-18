@@ -2237,13 +2237,68 @@ public enum FeedEndpoint {
 }
 ```
 
+Note: to force unwrap the url, we have to be 100% certain that the baseURL we are providing is not the result of, for example,  an API request, and its 100% a string that we have provided, otherwise this might fail and the app would break.
 
+Next step is to make it work with the "after_id", which means we need to pass that id. For this, we are going to modify our already existent get case to give it an associated value parameter, that will be an optional FeedImage to which we will give a default nil value.
 
+```swift
+public enum FeedEndpoint {
+    case get(after: FeedImage? = nil)
+    ...
+    ...
+}
+```
 
+This change will break our clients, (this is a breaking change), we could also have created a new case that didnt make this a necessity, but it wouldn't make sense becausewe would just be duplicating code, and also it would mean that clients would have to switch over this enum, which is something that is best avoided if possible. If we dont want to use enums and break clients, we can also use structs with static factory methods, but for this case, only the composition root uses the endpoint, so we are going to keep the enum.
 
+As usual, we create a new test, this time with a mock image to test that the query is correct, 
 
+```swift
+func test_feed_endpointURLAfterGivenImage() {
+		let image = uniqueImage()
+		let baseURL = URL(string: "http://base-url.com")!
 
+		let received = FeedEndpoint.get(after: image).url(baseURL: baseURL)
+		let expected = URL(string: "http://base-url.com/v1/feed")!
 
+		XCTAssertEqual(received.scheme, "http", "scheme")
+		XCTAssertEqual(received.host, "base-url.com", "host")
+		XCTAssertEqual(received.path, "/v1/feed", "path")
+		XCTAssertEqual(received.query, "limit=10&after_id=\(image.id)", "query")
+}
+```
+
+Now we refactor the FeedEnpoint so that it takes into account the image's id: 
+
+```swift
+public enum FeedEndpoint {
+    case get(after: FeedImage? = nil)
+    
+    public func url(baseURL: URL) -> URL {
+        switch self {
+        case let .get(image):
+            let url = baseURL.appendingPathComponent("/v1/feed")
+            var components = URLComponents()
+            components.scheme = baseURL.scheme
+            components.host = baseURL.host
+            components.path = baseURL.path + "/v1/feed"
+            components.queryItems = [
+                URLQueryItem(name: "limit", value: "10"),
+                image.map { URLQueryItem(name: "after_id", value: $0.id.uuidString) }
+            ].compactMap { $0 }
+            
+            return components.url!
+        }
+    }
+}
+```
+
+Now, for the most part, order is important, since in the URL path the order matters, but with the query items, order is irrelevant, since the limit=10 and the after_id={image.id} may come in different orders, for this we must change our tests to test accordingly to check the url query parameters without order, otherwise it may be problematic when refactoring, or if the backend returns values with the query parameters out of order:
+
+```swift
+XCTAssertEqual(received.query?.contains("limit=10"), true, "limit query param")
+XCTAssertEqual(received.query?.contains("&after_id=\(image.id)"), true, "after id query param")
+```
 
 
 
