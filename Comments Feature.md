@@ -2293,7 +2293,7 @@ public enum FeedEndpoint {
 }
 ```
 
-Now, for the most part, order is important, since in the URL path the order matters, but with the query items, order is irrelevant, since the limit=10 and the after_id={image.id} may come in different orders, for this we must change our tests to test accordingly to check the url query parameters without order, otherwise it may be problematic when refactoring, or if the backend returns values with the query parameters out of order:
+Now, for the most part, order is important, since in the URL path the order matters, but with the query items, order is ir relevant, since the limit=10 and the after_id={image.id} may come in different orders, for this we must change our tests to test accordingly to check the url query parameters without order, otherwise it may be problematic when refactoring, or if the backend returns values with the query parameters out of order:
 
 ```swift
 XCTAssertEqual(received.query?.contains("limit=10"), true, "limit query param")
@@ -2302,3 +2302,63 @@ XCTAssertEqual(received.query?.contains("&after_id=\(image.id)"), true, "after i
 
 
 
+**With this, we are done with the API :cloud: .** Now we have to move to **Composition**
+
+
+
+## Composition 
+
+- [ ] Paginate loading feed
+- [ ] Cache all loaded pages for offline support
+
+Now that we've finished with the API, its time to move to composition, for this, we will create some acceptance tests. 
+
+By doing these tests, with the desired behaviour, we see that we have not passed a **loadMore** closure in our Composition Root (SceneDelegate) when we initialize our Paginated, so we pass the loadMorePublisher, also what we have to do is to get the corresponding url to query the next items, this url will be composed with the last feedimage's id, to be able to create a "after_id" url.
+
+First we'll remember the current state of our makeRemoteFeedLoaderWithLocalFallback:
+
+```swift
+  private func makeRemoteFeedLoaderWithLocalFallback() -> AnyPublisher<Paginated<FeedImage>, Error> {
+        let url = FeedEndpoint.get().url(baseURL: baseURL)
+        
+        return httpClient
+            .getPublisher(url: url)
+            .tryMap(FeedItemsMapper.map)
+            .caching(to: localFeedLoader)
+            .fallback(to: localFeedLoader.loadPublisher)
+            .map {
+                Paginated(items: $0)
+            }
+            .eraseToAnyPublisher()
+    }
+```
+
+as we can see, we are not passing in the loadMore publisher that is needed, the first approach to fix this is to do:
+
+![image-20230718143954240](/Users/macbook/Library/Application Support/typora-user-images/image-20230718143954240.png)
+
+But unfortunately this will only work once and we can see that the code is getting messy and wont scale well, which we can confirm this by more acceptance tests, this means that we need a new approach.
+
+Instead of nesting the operation, we have to use recursion. For this we will create a new method `makeRemoteLoader(items: [FeedImage]) -> (() -> AnyPublisher<Paginated<FeedImage>,Error>)?`and start moving previous logic inside it:
+
+![image-20230718144612741](/Users/macbook/Library/Application Support/typora-user-images/image-20230718144612741.png)
+
+and replace the code in the previous method:
+
+![image-20230718144631184](/Users/macbook/Library/Application Support/typora-user-images/image-20230718144631184.png)
+
+But this is not its final form yet, we need to call **makeRemoteLoader** recursively:
+
+![image-20230718144823844](/Users/macbook/Library/Application Support/typora-user-images/image-20230718144823844.png)
+
+Of course it is still not passing, because we need a **last** item for each case:
+
+![image-20230718144931451](/Users/macbook/Library/Application Support/typora-user-images/image-20230718144931451.png)
+
+ When **newItems** is empty it means we've reached the end. We keep appending until the last item is empty, which means that we've reached the end of pagination.
+
+![image-20230718145030536](/Users/macbook/Library/Application Support/typora-user-images/image-20230718145030536.png)
+
+Now the code works correctly.
+
+So what this code does is it calls the makeRemoteLoadMoreLoader until we have no more items, to find the last, and then it returns that publisher and passes as the `loadMorePublisher` to the **Paginated** init.
