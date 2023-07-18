@@ -2675,9 +2675,11 @@ and it still works.
 
 Doing this or not depends on whether you want to keep the items in memory or not, keeping them in memory will be quicker, but it all depends on the results and on what you want/need. (if we are working with thousands of items it may not be the best to keep them in memory, and better to just load them when eneded)
 
-
-
 This pagination with caching we developed are independant/ decoupled from the pagination method/algorithm, so we can change it from keyset to offset to whaterver without breaking other modules.
+
+
+
+## Logging/ Profiling/ Optimizing infrastructure Services
 
 
 
