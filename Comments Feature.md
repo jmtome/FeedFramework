@@ -2539,7 +2539,40 @@ private func makeRemoteLoadMoreLoader(items: [FeedImage], last: FeedImage?) -> A
 
 Which significantly reduces the amount of lines and readability of the code and avoid nested closures, which we dont want.
 
-**CHECK ALL OF THIS CODE WHICH IS HARD, VIDEO 59, LAST 40 MINUTES OR SO**
+**CHECK ALL OF THIS CODE WHICH IS HARD, VIDEO 59, LAST 40 MINUTES.**
+
+If we wanted to simulate an error we could do: 
+
+```swift
+ private func makeRemoteLoadMoreLoader(items: [FeedImage], last: FeedImage?) -> AnyPublisher<Paginated<FeedImage>, Error> {
+        makeRemoteFeedLoader(after: last)
+            .map { newItems in
+                (items + newItems, newItems.last)
+            }.map(makePage)
+            .delay(for: 2, scheduler: DispatchQueue.main)
+            .flatMap { _ in
+                Fail(error: NSError())
+            }
+            .caching(to: localFeedLoader)
+}
+```
+
+And after 2 seconds we can see the error message on the **LoadMoreCell**. When we tap the cell we see it has a selection style, so we will change that now in **LoadMoreCellController** in the `cellForRowAt` method: 
+
+```swift
+public func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+    cell.selectionStyle = .none
+    return cell
+}
+```
+
+and now it works and displays as expected.
+
+
+
+
+
+
 
 
 
