@@ -2362,3 +2362,133 @@ Of course it is still not passing, because we need a **last** item for each case
 Now the code works correctly.
 
 So what this code does is it calls the makeRemoteLoadMoreLoader until we have no more items, to find the last, and then it returns that publisher and passes as the `loadMorePublisher` to the **Paginated** init.
+
+Code as we see it is still messy, and we will refactor it, but first we will make sure the caching works properly.
+
+
+
+### Caching the paginated response 
+
+For this we will want to test that, we start with an online status and fetch the data, then when we are offline we still see the data, in the same fashion we did before with this test:
+
+```swift
+func test_onLaunch_displaysCachedRemoteFeedWhenCustomerHasNoConnectivity() {
+			let sharedStore = InMemoryFeedStore.empty
+			let onlineFeed = launch(httpClient: .online(response), store: sharedStore)
+			onlineFeed.simulateFeedImageViewVisible(at: 0)
+			onlineFeed.simulateFeedImageViewVisible(at: 1)
+
+			let offlineFeed = launch(httpClient: .offline, store: sharedStore)
+
+			XCTAssertEqual(offlineFeed.numberOfRenderedFeedImageViews(), 2)
+			XCTAssertEqual(offlineFeed.renderedFeedImageData(at: 0), makeImageData0())
+			XCTAssertEqual(offlineFeed.renderedFeedImageData(at: 1), makeImageData1())
+}
+```
+
+So, if our system was working properly, we would be able to just add one more item during the online phase, and be able to retrieve it offline:
+
+```swift
+func test_onLaunch_displaysCachedRemoteFeedWhenCustomerHasNoConnectivity() {
+			let sharedStore = InMemoryFeedStore.empty
+			
+			let onlineFeed = launch(httpClient: .online(response), store: sharedStore)
+			onlineFeed.simulateFeedImageViewVisible(at: 0)
+			onlineFeed.simulateFeedImageViewVisible(at: 1)
+			onlineFeed.simulateLoadMoreFeedAction()
+			onlineFeed.simulateFeedImageViewVisible(at: 2)
+			
+			let offlineFeed = launch(httpClient: .offline, store: sharedStore)
+			
+			XCTAssertEqual(offlineFeed.numberOfRenderedFeedImageViews(), 3)
+			XCTAssertEqual(offlineFeed.renderedFeedImageData(at: 0), makeImageData0())
+			XCTAssertEqual(offlineFeed.renderedFeedImageData(at: 1), makeImageData1())
+			XCTAssertEqual(offlineFeed.renderedFeedImageData(at: 2), makeImageData2())
+}
+```
+
+but its failing.
+
+Fixing this is easy, we go to the composition and in the method we just created `makeRemoteMoreFeedLoader` we add a caching command just before the end of the pipeline, for this we have to create a new caching function for the paginated case inside the combine helpers: 
+
+```swift
+extension Publisher {
+    func caching(to cache: FeedCache) -> AnyPublisher<Output, Failure> where Output == [FeedImage] {
+        handleEvents(receiveOutput: cache.saveIgnoringResult).eraseToAnyPublisher()
+    }
+    
+    func caching(to cache: FeedCache) -> AnyPublisher<Output, Failure> where Output == Paginated<FeedImage> {
+        handleEvents(receiveOutput: cache.saveIgnoringResult).eraseToAnyPublisher()
+    }
+}
+```
+
+This way we can handle paginating both cases with pagination and with managing the whole feed. We also add a helper:
+
+```swift
+private extension FeedCache {
+    func saveIgnoringResult(_ feed: [FeedImage]) {
+        save(feed) { _ in }
+    }
+    
+    func saveIgnoringResult(_ page: Paginated<FeedImage>) {
+        saveIgnoringResult(page.items)
+    }
+}
+```
+
+Back to our Composition Root we have:
+
+```swift
+private func makeRemoteLoadMoreLoader(items: [FeedImage], last: FeedImage?) -> (() -> AnyPublisher<Paginated<FeedImage>, Error>)? {
+    last.map { lastItem in
+        let url = FeedEndpoint.get(after: lastItem).url(baseURL: baseURL)
+        
+        return { [httpClient, localFeedLoader] in
+            httpClient
+                .getPublisher(url: url)
+                .tryMap(FeedItemsMapper.map)
+                .map { newItems in
+                    let allItems = items + newItems
+                    return Paginated(items: allItems, loadMorePublisher: self.makeRemoteLoadMoreLoader(items: allItems, last: newItems.last))
+                }
+                .caching(to: localFeedLoader)
+        }
+    }
+}
+```
+
+Now, our tests are passing and the pages are being cached. Our cache doesnt need to know anything about pagination, since it's an api detail, this is why we didnt have to make any changes to the cache logic.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

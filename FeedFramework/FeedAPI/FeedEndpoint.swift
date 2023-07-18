@@ -13,7 +13,6 @@ public enum FeedEndpoint {
     public func url(baseURL: URL) -> URL {
         switch self {
         case let .get(image):
-            let url = baseURL.appendingPathComponent("/v1/feed")
             var components = URLComponents()
             components.scheme = baseURL.scheme
             components.host = baseURL.host
@@ -22,7 +21,6 @@ public enum FeedEndpoint {
                 URLQueryItem(name: "limit", value: "10"),
                 image.map { URLQueryItem(name: "after_id", value: $0.id.uuidString) }
             ].compactMap { $0 }
-            
             return components.url!
         }
     }
