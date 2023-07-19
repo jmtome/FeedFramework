@@ -2723,7 +2723,7 @@ We don't want to mask the errors with print statements!.
 
 
 
-In our app, the CoreData store is not *critical*, since if it failed, our app would still work with internet, since the core data store is a fallback. In these cases, when a component is not crucial, we can replace a faulty component with another at runtime, for example we could replace a faulty coredata instance with an in-memory store. Another strategy is to use the **Null-Object Pattern**.
+In our app, the CoreData store is not *critical*, since if it failed, our app would still work with internet, since the core data store is a fallback. In these cases, when a component is not crucial, we can replace a faulty component with another at runtime, for example we could replace a faulty coredata instance with our in-memory store (which would have to be made thread safe if we were to use it). Another strategy is to use the **Null-Object Pattern**.
 
 
 
@@ -2731,11 +2731,88 @@ In our app, the CoreData store is not *critical*, since if it failed, our app wo
 
 "A null object is an object with no referenced value or with a defined natural ("null") behaviour"
 
+For example, we can create a NullStore that implements the protocols it needs to, and it will provide a default neutral behaviour, a behaviour that will not leave your system in a weird state but will do the minimum possible. For example
+
+```swift
+class NullStore: FeedStore & FeedImageDataStore {}	
+```
+
+Which will implement all the methods needed by the protocol conformance:
+
+```swift
+class NullStore: FeedStore & FeedImageDataStore {
+    func deleteCachedFeed(completion: @escaping DeletionCompletion) {
+        
+    }
+    
+    func insert(_ feed: [FeedFramework.LocalFeedImage], timestamp: Date, completion: @escaping InsertionCompletion) {
+        
+    }
+    
+    func retrieve(completion: @escaping RetrievalCompletion) {
+        
+    }
+    
+    func insert(_ data: Data, for url: URL, completion: @escaping (InsertionResult) -> Void) {
+        
+    }
+    
+    func retrieve(dataForURL url: URL, completion: @escaping (RetrievalResult) -> Void) {
+        
+    }
+}
+```
+
+So, what is the neutral behaviour for a **deleteCachedFeed**? It needs to at least complete the operation so the clients wont be hanging forever, to which we should get a .success(), because yes, there is no cache, but it didnt fail.
+
+When **insert** ?, the same, we just complete with .success().
+
+When **retrieve**? completion with .success(.none), it couldnt retrieve anything, but the operation completes successfully.
+
+This **Neutral** behaviour depends from case to case, in our case we just need it to complete with success, so as not to break the flow of the app. For example if we have a method that does not take arguments and returns a void, we can simply do nothing.
+
+Here is our finished **NullStore**: 
+
+```swift
+class NullStore: FeedStore & FeedImageDataStore {
+    func deleteCachedFeed(completion: @escaping DeletionCompletion) {
+        completion(.success(()))
+    }
+    
+    func insert(_ feed: [FeedFramework.LocalFeedImage], timestamp: Date, completion: @escaping InsertionCompletion) {
+        completion(.success(()))
+    }
+    
+    func retrieve(completion: @escaping RetrievalCompletion) {
+        completion(.success(.none))
+    }
+    
+    func insert(_ data: Data, for url: URL, completion: @escaping (InsertionResult) -> Void) {
+        completion(.success(()))
+    }
+    
+    func retrieve(dataForURL url: URL, completion: @escaping (FeedImageDataStore.RetrievalResult) -> Void) {
+        completion(.success(.none))
+    }
+}
+```
 
 
 
+Now we can change the declaration of our **store** in the SceneDelegate, not to force try, but with a Do-Catch, and in case it fails, we return a NullStore:
 
-
+```swift
+ private lazy var store: FeedStore & FeedImageDataStore = {
+        do {
+            return try CoreDataFeedStore(
+                storeURL: NSPersistentContainer
+                    .defaultDirectoryURL()
+                    .appendingPathComponent("feed-store.sqlite"))
+        } catch {
+            return NullStore()
+        }
+    }()
+```
 
 
 
