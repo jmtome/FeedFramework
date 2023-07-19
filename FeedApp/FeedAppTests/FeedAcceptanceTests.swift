@@ -46,7 +46,7 @@ class FeedAcceptanceTests: XCTestCase {
         onlineFeed.simulateLoadMoreFeedAction()
         onlineFeed.simulateFeedImageViewVisible(at: 2)
         
-        let offlineFeed = launch(httpClient: .offline, store: sharedStore)
+//        let offlineFeed = launch(httpClient: .offline, store: sharedStore)
         
 //        XCTAssertEqual(offlineFeed.numberOfRenderedFeedImageViews(), 3)
 //        XCTAssertEqual(offlineFeed.renderedFeedImageData(at: 0), makeImageData0())
@@ -158,7 +158,7 @@ class FeedAcceptanceTests: XCTestCase {
     }
     
     private func makeLastEmptyFeedPageData() -> Data {
-        return try! JSONSerialization.data(withJSONObject: ["items": []])
+        return try! JSONSerialization.data(withJSONObject: ["items": [] as [Any]])
     }
     
     private func makeCommentsData() -> Data {
