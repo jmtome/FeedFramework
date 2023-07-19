@@ -2814,7 +2814,20 @@ Now we can change the declaration of our **store** in the SceneDelegate, not to 
     }()
 ```
 
+If for example a migration fails on some devices, this way the app wont crash. But truly what we want now is to be notified when these problems happen, usually, we could add a **print** statement in the catch of the previous instantiation. But the more **log** messages we see on the console the less attention we will pay to them. But this is not nice, and we can't use it, before this at least if the store failed, the app would crash, this way the error gets buried in prints, so we want it to at least be able to crash on **debug** builds, so that when in testing, we can see it crash, so we are notified quickly of any programmer mistake.
 
+What we can do for this is to add an **assertionFailure** to the catch block instead of a print, because **assertionFailure** will cause a crash on debug builds, but not on release builds. So the catch would look like this:
+
+```swift
+catch {
+            assertionFailure("Failed to instantiate CoreDate store with error: \(error.localizedDescription)")
+            return NullStore()
+        }
+```
+
+
+
+But what if a programmer mistake is released by mistake? For example a faulty CoreData migration that only happens on specific devices
 
 
 
