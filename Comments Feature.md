@@ -2681,15 +2681,55 @@ This pagination with caching we developed are independant/ decoupled from the pa
 
 ## Logging/ Profiling/ Optimizing infrastructure Services
 
+Live #006
+
+- Logging and Profiling as Cross-Cutting Concerns
+- Monitoring Debug and Release builds 
+- Null object pattern
+- Optimizing data consumption
 
 
 
+### Logging
+
+The idea is to do Logging in a clean way, without adding print statements everywhere.
+
+"Log messages provide a continuous record of your app's runtime behaviour, and make it easier to identify problems that can't be caught easily using other techniques" - Apple Docs.
+
+#### Common use cases
+
+- Diagnosing problems without a debugger or when it's difficult to catch in the debugger (for example when the app is in production you cant debug it, or test it, but you can read the log messages)
+- Tracing your app's behavior (e.g., when certain tasks start/end)
+- Auditing
+- Performance monitoring
+- Recording unhandled Errors/Exceptions
+
+#### Common Challenges
+
+From Jeff Atwood (the co-creator of Stack Overflow)
+
+- **Logging means more code** , which obscures your application code.
+- **Logging isn't free**, and logging a lot means constantly writing to disk.
+- **The more you log**, the less you can find.
+- **If it's worth saving to a log file, it's worth showing in the user interface.** Many apps have use cases that do not handle the errors, and just print the unhandled error to a log on the console, without even showing the user what happened, this is terrible, because its like having a silent error that we can't track properly. Sometimes it is better that the app crashes altogether instead of **silently** failing, since at least a crash sends us a crash report and we can see what happened, whereas an unhandled error printed to a log wont help us find and solve the problem, and the user will feel like the app is not working as intended.
 
 
 
+Taking a look in our project we can see that in the SceneDelegate, when we are instantiating the CoreData `store` property we are doing a **try!** to instanciate it, but it could fail. This could happen due to many things, such as no more space left, a faulty migration by the developer, or some other developing error. Many programmers in this situation would choose not to have a throwing function in order for the app not to crash, and just ignore the errors or print them. It's also very commo to see a lot of code full of guards and returns that dont handle the errors.
+
+**Safe code isnt necessarily about the app never crashing, safe code doesn't allow the system to get into a weird state, if the system gets into a weird state, the safe thing to do is crash, because then we preserve the identity of the system.** 
+
+We don't want to mask the errors with print statements!.
 
 
 
+In our app, the CoreData store is not *critical*, since if it failed, our app would still work with internet, since the core data store is a fallback. In these cases, when a component is not crucial, we can replace a faulty component with another at runtime, for example we could replace a faulty coredata instance with an in-memory store. Another strategy is to use the **Null-Object Pattern**.
+
+
+
+### Null Object Pattern
+
+"A null object is an object with no referenced value or with a defined natural ("null") behaviour"
 
 
 
