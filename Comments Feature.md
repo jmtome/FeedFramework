@@ -3112,6 +3112,143 @@ We see how we can **inject** the logging behaviour into the **chain** , and if w
 
 
 
+So with this logging we wound an issue: every time we reload, we reload all the images again. But, the cache should prevent reloading the same images again, so we can optimize the data consumption. We can also trace for cache misses (how many times it tries to find an image in the cache and it was empty).
+
+So lets add a new logger in the same combine chain.
+
+
+
+```swift
+func logCacheMisses(url: URL, logger: Logger) -> AnyPublisher<Output, Failure> {
+        return handleEvents(receiveCompletion: { result in
+            if case let .failure(error) = result {
+                logger.trace("Cache miss for url: \(url), with error: \(error.localizedDescription)\n")
+            }
+        })
+        .eraseToAnyPublisher()
+    }
+```
+
+
+
+```swift
+private func makeLocalImageLoaderWithRemoteFallback(url: URL) -> FeedImageDataLoader.Publisher {
+        let localImageLoader = LocalFeedImageDataLoader(store: store)
+        
+        return localImageLoader
+            .loadImageDataPublisher(from: url)
+            .logCacheMisses(url: url, logger: logger)
+            .fallback(to: { [logger, httpClient] in
+                return httpClient
+                    .getPublisher(url: url)
+                    .logError(url: url, logger: logger)
+                    .logElapsedTime(url: url, logger: logger)
+                    .tryMap(FeedImageDataMapper.map)
+                    .caching(to: localImageLoader, using: url)
+            })
+    }
+```
+
+
+
+And now we can start logging the cache misses. We can see that every time we execute a reload, the number of cache misses increases constantly. It seems that the cache is failing for a lot of url's, if the cache worked properly we would avoid doing a lot of requests. So the next step is to optimize CoreData implementation to reduce cache misses.
+
+
+
+
+
+Checking our existing code:
+
+```swift
+extension LocalFeedLoader: FeedCache {
+    public typealias SaveResult = FeedCache.Result
+    
+    public func save(_ feed: [FeedImage], completion: @escaping (SaveResult) -> Void) {
+        store.deleteCachedFeed { [weak self] deletionResult in
+            guard let self = self else { return }
+            
+            switch deletionResult {
+            case.success:
+                self.cache(feed, with: completion)
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+    }
+    
+    private func cache(_ feed: [FeedImage], with completion: @escaping (SaveResult) -> Void) {
+        store.insert(feed.toLocal(), timestamp: currentDate()) { [weak self] error in
+            guard self != nil else { return }
+           
+            completion(error)
+        }
+    }
+}
+```
+
+
+
+We can see, that when we save new images, we are deleting the existing cache to add the new one, and in doing so we are deleteing all the existing images, and if the new cache happens to contain the same images we have to load them again, which consumes resources unnecesarily, so we can change this implementation, we could handle **diffing** (seeing what is different and only removing what is different), but this would also complicate the service logic (the LocalFeedLoader). Deleting and Inserting is much simpler, it's usually its better to improve the performance in the infrastructure implementation so you dont pollute your services with performance improvements, because performance improvements are usually in the infrastructure, like if a database is too slow we can create an index for example.
+
+Because if we start adding performance improvements in our services classes or our business logic its going to become very hard to mantain it, so what if instead we improved the performance in our infrastructure **CoreDataStore**, this way we wouldnt need to complicate our Loader service (LoadFeedLoader). 
+
+
+
+So we go to the infrastructure, to **ManagedFeedImage**, so can how we keep track of all the deleted FeedImages? 
+
+First, we can override `prepareForDeletion` which is called for each **CoreData** entity before its deletion. And we could store its image data in a temporary place. One way we can do it is to store it in the managedObjectContext?.userInfo dictionary which is not persisted in disk, its just a temporary lookup dictionary. So we can store here the data for that instance, if any for its **url** , before deleting. And when we are creating new images, we can try to find data for that url in the temporary cache:
+
+
+
+```swift
+static func images(from localFeed: [LocalFeedImage], in context: NSManagedObjectContext) -> NSOrderedSet {
+		let images =  NSOrderedSet(array: localFeed.map { local in
+			let managed = ManagedFeedImage(context: context)
+			managed.id = local.id
+			managed.imageDescription = local.description
+			managed.location = local.location
+			managed.url = local.url
+            managed.data = context.userInfo[local.url] as? Data
+			return managed
+		})
+        context.userInfo.removeAllObjects()
+        
+        return images
+	}
+
+override func prepareForDeletion() {
+    super.prepareForDeletion()
+    
+    managedObjectContext?.userInfo[url] = data
+}
+```
+
+So, we are performing this optimization **IN THE INFRASTRUCTURE .**
+
+Its important to note that we have to clear the temporary dictionary lookup table or we will be holding hundreds of images at some point , so in the same static method `images(from:...)` we remove all objects from the context like we can see in the previous code.
+
+
+
+The idea with all this is that when we delete the existing cache to add a new cache, we will briefly store the active cache to then assign it to the new cache we are just creating, and at that moment we clean the dictionary. This dictionary secondary cache will have a very short lived life.
+
+Another optimization we can do is in the static method `data(with url...)` we can first look up in the userInfo context dictionary to see if the data for the url exists in our temporary cache and if it does we return it immediately, so if we have the data in our temporary cache, we use it instead of making a database request which is much slower, because a dictionary lookup happens in constant time:
+
+```swift
+static func data(with url: URL, in context: NSManagedObjectContext) throws -> Data? {
+        if let data = context.userInfo[url] as? Data { return data }
+        
+        return try first(with: url, in: context)?.data
+    }
+```
+
+
+
+Now, if we run the app again we can see that we have 0 cache misses when reloading, and the only misses we see are the ones related to the image not being in the cache for the first time.
+
+
+
+
+
 
 
 
