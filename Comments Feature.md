@@ -2827,7 +2827,65 @@ catch {
 
 
 
-But what if a programmer mistake is released by mistake? For example a faulty CoreData migration that only happens on specific devices
+But what if a programmer mistake is released by mistake? For example a faulty CoreData migration that only happens on specific devices that we couldn't catch on debug?. 
+
+So, when we want to be notified of faulty behaviour in our release builds, we can use a logger library, there are many out there like for example **Firebase Crashalytics**, in our case we are going to be using the **Logger** **library** from **Apple's** **OS** **Framework** , simply by importing "os".
+
+So we will now create a new property **logger: Logger** (Logger only works from iOS14+)
+
+``` swift
+private lazy var logger = Logger(subsystem: "com.CompanyIdentifier.OurApp", category: "main")		
+```
+
+where the "subsystem" parameter makes reference to the **Bundle Identifier** set in **Signing & Capabilities** under the **Team**, and "category" is usually the module you are loading (which in this case doesnt make reference to anything in particular).
+
+Now we can use this logger, or whatever logger library we are using to log the failure:
+
+```swift
+catch {
+            assertionFailure("Failed to instantiate CoreDate store with error: \(error.localizedDescription)")
+            logger.fault("Failed to instantiate CoreDate store with error: \(error.localizedDescription)")
+            return NullStore()
+        }
+```
+
+Now we will have the error also logged, so that if it happens in production we can check for it.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
