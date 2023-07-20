@@ -120,11 +120,60 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         
         return localImageLoader
             .loadImageDataPublisher(from: url)
-            .fallback(to: { [httpClient] in
+            .fallback(to: { [httpClient, logger] in
                 httpClient
                     .getPublisher(url: url)
+                    .logError(url: url, logger: logger)
+                    .logElapsedTime(url: url, logger: logger)
                     .tryMap(FeedImageDataMapper.map)
                     .caching(to: localImageLoader, using: url)
             })
     }
 }
+
+extension Publisher {
+    func logError(url: URL, logger: Logger) -> AnyPublisher<Output, Failure> {
+        return handleEvents(receiveCompletion: { result in
+            if case let .failure(error) = result {
+                logger.trace("Failed to load url: \(url), with error: \(error.localizedDescription)\n")
+            }
+        })
+        .eraseToAnyPublisher()
+    }
+    
+    func logElapsedTime(url: URL, logger: Logger) -> AnyPublisher<Output, Failure> {
+        var startTime = CACurrentMediaTime()
+
+        return handleEvents(receiveSubscription: { _ in
+            logger.trace("Started loading url: \(url)\n")
+            startTime = CACurrentMediaTime()
+        }, receiveCompletion: { result in
+            let elapsedTime = CACurrentMediaTime() - startTime
+            logger.trace("Finished loading url: \(url) in \(elapsedTime) seconds\n")
+        })
+        .eraseToAnyPublisher()
+    }
+}
+
+//private class HTTPClientProfilingDecorator: HTTPClient {
+//    private let decoratee: HTTPClient
+//    private let logger: Logger
+//
+//    internal init(decoratee: HTTPClient, logger: Logger) {
+//        self.decoratee = decoratee
+//        self.logger = logger
+//    }
+//
+//    func get(from url: URL, completion: @escaping (HTTPClient.Result) -> Void) -> HTTPClientTask {
+//        logger.trace("Started loading url: \(url)\n")
+//        let startTime = CACurrentMediaTime()
+//        return decoratee.get(from: url) { [logger] result in
+//            if case let .failure(error) = result {
+//                logger.trace("Failed to load url: \(url), with error: \(error)\n")
+//            }
+//            let elapsedTime = CACurrentMediaTime() - startTime
+//            logger.trace("Finished loading url: \(url) in \(elapsedTime) seconds\n")
+//            completion(result)
+//        }
+//    }
+//}

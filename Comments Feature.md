@@ -2858,23 +2858,257 @@ So, the main idea is :
 - **Provide a fallback strategy if you can** (and when you do, log the errors)
 - **If the issue is really critical, it's better to crash the app than to get into a weird state where the App becomes unusable and must be reinstalled** 
 
+Another thing that is important that we can see here, is that we are adding the **log** in the error handling not within the instance that generated the error (**CoreDataFeedStore**), but from the main module in the **Composition Root**, and this is how you avoid having to inject loggers or even access global loggers from every module in your app, with a good application design you'll be able to apply logging without polluting your entire codebase. (We could of course have passed a logger to all of our objects such as **CoreDataFeedStore**, but that only pollutes the code, and its an extra dependency to which the objects don't need to know about, because they dont use it.)
+
+Logging is not free, it should be decided in the main module how to do it and when to do it and the more you log, the less you can find, so logs should be kept at a minimum for really critical errors and issues.
 
 
 
+All of this said, is about tracing and monitoring errors in production, what about tracing debug logs to help find issues in debug?.
+
+For example, lets profile the network request in our app:
+
+![image-20230719213336858](/Users/macbook/Library/Application Support/typora-user-images/image-20230719213336858.png)
+
+We can see that as we scroll through the feed, new connections and consumptions start appearing in the network activity report:
+
+![image-20230719213429174](/Users/macbook/Library/Application Support/typora-user-images/image-20230719213429174.png)
+
+As we pull to refresh or scroll through the feed to load more items, we can easily see how our Network Data Consumption rises, which may sometimes be quite inconvenient for users on Cellular Networks. We can see that everytime we do a pull to refresh, we are loading all the images again, so what if we want to trace those requests to help us reduce the data usage? Of course we could use **Instruments** , but what if we want to keep track of these requests, which ones were rejected, which ones completed?
+
+ We couldn't write tests since its very hard to write tests to track these metrics/issues/performance improvements/data consumption, but what we can use are **logs**, but they are usually temporary trace logs, because we dont want to leave them in the app, we dont want them in release or in debug (we dont want to have thousands of log messages in the console), and we also want to be able to trace and add these logging behaviour without polluting our modules, because logging is a cross-cutting concern that can be injected from the Composition-Root, but we don't want to inject these modules everywhere or use a singleton that can lead to race conditions or other problems.
+
+So, how do we deal with cross-cutting concerns? -> with the Decorator Pattern, we can inject the logging, by decorating an **httpClient**: 
+
+```swift
+private class HTTPClientProfilingDecorator: HTTPClient {
+    private let decoratee: HTTPClient
+    private let logger: Logger
+    
+    internal init(decoratee: HTTPClient, logger: Logger) {
+        self.decoratee = decoratee
+        self.logger = logger
+    }
+    
+    func get(from url: URL, completion: @escaping (HTTPClient.Result) -> Void) -> HTTPClientTask {
+        logger.trace("Started loading url: \(url)")
+        return decoratee.get(from: url) { [logger] result in
+            logger.trace("Finished loading url: \(url)")
+            completion(result)
+        }
+    }
+}
+```
+
+So all we do here is use a decorator, to _decorate_ our HTTPClient, by adding two trace logs that log when a url started loading and when the url finished loading, and then we just simply forward the decoratee's message, this way we can easily add desired behaviour to an existing component without modifying it, satisfying the open-closed principle. Basically a Decorator is a wrapper, that wraps our existing object and adds functionality to it.
+
+The idea is to track the loading of the images, so we will use the decorated client in the **makeLocalImageWithRemoteFallback(url:URL)** method in our SceneDelegate:
+
+```swift
+private func makeLocalImageLoaderWithRemoteFallback(url: URL) -> FeedImageDataLoader.Publisher {
+     let wrappedClient = HTTPClientProfilingDecorator(decoratee: httpClient, logger: logger)
+     
+     let localImageLoader = LocalFeedImageDataLoader(store: store)
+     
+     return localImageLoader
+         .loadImageDataPublisher(from: url)
+         .fallback(to: { 
+             wrappedClient
+                 .getPublisher(url: url)
+                 .tryMap(FeedImageDataMapper.map)
+                 .caching(to: localImageLoader, using: url)
+         })
+    }
+}
+```
+
+Here we have replaced the already existing httpClient for the wrappedClient that has the logger.
+
+Now we run the app, and in the console we can read: 
+
+![image-20230719230515997](/Users/macbook/Library/Application Support/typora-user-images/image-20230719230515997.png)
+
+We see that our logger is working properly, logging when the loading starts and when it finishes.
+
+We could also log how long the request took and also add a log in case of failure:
+
+```swift
+private class HTTPClientProfilingDecorator: HTTPClient {
+    private let decoratee: HTTPClient
+    private let logger: Logger
+    
+    internal init(decoratee: HTTPClient, logger: Logger) {
+        self.decoratee = decoratee
+        self.logger = logger
+    }
+    
+    func get(from url: URL, completion: @escaping (HTTPClient.Result) -> Void) -> HTTPClientTask {
+        logger.trace("Started loading url: \(url)")
+        let startTime = CACurrentMediaTime()
+        return decoratee.get(from: url) { [logger] result in
+            if case let .failure(error) = result {
+                logger.trace("Failer to load url: \(url), with error: \(error.localizedDescription)")
+            }
+            let elapsedTime = CACurrentMediaTime() - startTime
+            logger.trace("Finished loading url: \(url) in \(elapsedTime) seconds")
+            completion(result)
+        }
+    }
+}
+```
 
 
 
+Here we can see the console output of the logger:
+
+![image-20230719231606572](/Users/macbook/Library/Application Support/typora-user-images/image-20230719231606572.png)
+
+we can see that we have the start logs, the finish logs, the elapsed times and the logged errors.
+
+We only replaced a decorated for a decoratee for the fetch of images, but we could easily replace the main **httpClient** and log everything that goes through the client, but this could easily get out of hand, to do it universal we would do: 
+
+```swift
+ private lazy var httpClient: HTTPClient = {
+        HTTPClientProfilingDecorator(decoratee: URLSessionHTTPClient(session: URLSession(configuration: .ephemeral)), logger: logger)
+    }()
+```
+
+Wrapping our existing URLSessionHTTPCLient.
+
+The conclusion, though, is that you do not need to pollute your entire codebase with logging, you can just log the infrastructure errors, because normally you want to log performance, and performance is usually talking to a database or to the network, or the ui, all infrastructure, and you do the infrastructure in the infrastructure layer, you dont need to pollute your business layer with a bunch of logs. No business rule should know about the logging, that is why we do all this in the composition root including the performance logging.
+
+If we are using Combine, in fact, we dont even need to create the decorator we created, because with Combine, we can inject logging directly in to the publisher chain, using the **.handleEvents()** publisher that allows you to inject side effects according to the state of the subscription, since the handleEvents method can subscribe to the different stages of the subscription, we can inject code on subscription, on cancel, complete :
+
+![image-20230719233658969](/Users/macbook/Library/Application Support/typora-user-images/image-20230719233658969.png)
+
+For example, we could do the exact same thing that we did with the decorator the following way:
+
+```swift
+private func makeLocalImageLoaderWithRemoteFallback(url: URL) -> FeedImageDataLoader.Publisher {
+    let localImageLoader = LocalFeedImageDataLoader(store: store)
+    
+    return localImageLoader
+        .loadImageDataPublisher(from: url)
+        .fallback(to: { [logger, httpClient] in
+            var startTime = CACurrentMediaTime()
+            return httpClient
+                .getPublisher(url: url)
+                .handleEvents(receiveSubscription: { [logger] _ in
+                    logger.trace("Started loading url: \(url)")
+                    startTime = CACurrentMediaTime()
+                }, receiveCompletion: { [logger] result in
+                    if case let .failure(error) = result {
+                        logger.trace("Failed to load url: \(url), with error: \(error.localizedDescription)")
+                    }
+                    let elapsedTime = CACurrentMediaTime() - startTime
+                    logger.trace("Finished loading url: \(url) in \(elapsedTime) seconds")
+                })
+                .tryMap(FeedImageDataMapper.map)
+                .caching(to: localImageLoader, using: url)
+        })
+}
+```
 
 
 
+And the logging follows:
+
+![image-20230719233947398](/Users/macbook/Library/Application Support/typora-user-images/image-20230719233947398.png)
+
+Which means we could do without the decorator we created earlier.
+
+We can go one step further, so as not to pollute our existing code and create a **Combine** extension of **Publisher** and do:
+
+```swift
+extension Publisher {
+    func logElapsedTime(url: URL, logger: Logger) -> AnyPublisher<Output, Failure> {
+        var startTime = CACurrentMediaTime()
+
+        return handleEvents(receiveSubscription: { _ in
+            logger.trace("Started loading url: \(url)")
+            startTime = CACurrentMediaTime()
+        }, receiveCompletion: { result in
+            if case let .failure(error) = result {
+                logger.trace("Failed to load url: \(url), with error: \(error.localizedDescription)")
+            }
+            let elapsedTime = CACurrentMediaTime() - startTime
+            logger.trace("Finished loading url: \(url) in \(elapsedTime) seconds")
+        })
+        .eraseToAnyPublisher()
+    }
+}
+```
+
+And then chain it in our publisher stream:
+
+```swift
+private func makeLocalImageLoaderWithRemoteFallback(url: URL) -> FeedImageDataLoader.Publisher {
+        let localImageLoader = LocalFeedImageDataLoader(store: store)
+        
+        return localImageLoader
+            .loadImageDataPublisher(from: url)
+            .fallback(to: { [logger, httpClient] in
+                return httpClient
+                    .getPublisher(url: url)
+                    .logElapsedTime(url: url, logger: logger)
+                    .tryMap(FeedImageDataMapper.map)
+                    .caching(to: localImageLoader, using: url)
+            })
+    }
+```
+
+And we get the same loggin results.
+
+We could even break the login into elapsed time and log error:
+
+```swift
+extension Publisher {
+    func logError(url: URL, logger: Logger) -> AnyPublisher<Output, Failure> {
+        return handleEvents(receiveCompletion: { result in
+            if case let .failure(error) = result {
+                logger.trace("Failed to load url: \(url), with error: \(error.localizedDescription)")
+            }
+        })
+        .eraseToAnyPublisher()
+    }
+    
+    func logElapsedTime(url: URL, logger: Logger) -> AnyPublisher<Output, Failure> {
+        var startTime = CACurrentMediaTime()
+
+        return handleEvents(receiveSubscription: { _ in
+            logger.trace("Started loading url: \(url)")
+            startTime = CACurrentMediaTime()
+        }, receiveCompletion: { result in
+            let elapsedTime = CACurrentMediaTime() - startTime
+            logger.trace("Finished loading url: \(url) in \(elapsedTime) seconds")
+        })
+        .eraseToAnyPublisher()
+    }
+}
+```
 
 
 
+And now we can separately just log what we are interested in:
 
+```swift
+private func makeLocalImageLoaderWithRemoteFallback(url: URL) -> FeedImageDataLoader.Publisher {
+        let localImageLoader = LocalFeedImageDataLoader(store: store)
+        
+        return localImageLoader
+            .loadImageDataPublisher(from: url)
+            .fallback(to: { [logger, httpClient] in
+                return httpClient
+                    .getPublisher(url: url)
+                    .logError(url: url, logger: logger)
+                    .logElapsedTime(url: url, logger: logger)
+                    .tryMap(FeedImageDataMapper.map)
+                    .caching(to: localImageLoader, using: url)
+            })
+    }
+```
 
-
-
-
+We see how we can **inject** the logging behaviour into the **chain** , and if we are not using combine, we can use the method described with the decorator.
 
 
 
