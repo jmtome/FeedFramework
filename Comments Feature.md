@@ -2851,6 +2851,13 @@ catch {
 
 Now we will have the error also logged, so that if it happens in production we can check for it.
 
+So, the main idea is : 
+
+- **Don't ignore errors**
+- **Don't let your app get into a weird state**
+- **Provide a fallback strategy if you can** (and when you do, log the errors)
+- **If the issue is really critical, it's better to crash the app than to get into a weird state where the App becomes unusable and must be reinstalled** 
+
 
 
 
