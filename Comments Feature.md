@@ -3343,7 +3343,174 @@ A publisher can emit infinite values, but it will only stop sending events when 
 
 
 
+Ideally though, you shouldnt log everything. If there is a test for it, you should test it with a test and not a log. 
 
+
+
+We can still see that some images are still being loaded multiple times which is more than what we would want. We still have performance improvements we can make. It seems that everytime we load a new page, we repeat some image requests, thats probably because every time we load a new page we append the cache items into the new page and we recreate all the cell controllers in the **feedviewadapter**, so everytime we get a new page we dont get only the new items, we get all the items, the cached ones appended with the new ones, and the implementation currently simply iterates through that collection of paginated items and recreates all the cell controllers. 
+
+This is not efficient, it works, but its not efficient. 
+
+So in this case, in our FeedViewAdapter we could reuse the existing cellcontrollers from previous pages that were already created and allocated and just append new pages into it, so we avoid a bunch of allocations and we avoid recreating presentation adapters because then we would lose the **isLoading** state.
+
+For this case we can write an extra assertion in our already existing test `test_feedImageView_doesNotLoadImageAgainUntilPreviousRequestCompletes` in the **FeedUIIntegrationTests** , at the end of the existing test we can add:
+
+```swift
+// Previous flow of the test
+sut.simulateFeedImageViewNotVisible(at: 0)
+sut.simulateFeedImageViewVisible(at: 0)
+XCTAssertEqual(loader.loadedImageURLs, [image.url, image.url, image.url], "Expected third request when visible after canceling previous complete")
+
+// New assertions in the test
+sut.simulateLoadMoreFeedAction()
+loader.completeLoadMore(with: [image, makeImage()])
+sut.simulateFeedImageViewVisible(at: 0)
+XCTAssertEqual(loader.loadedImageURLs, [image.url, image.url, image.url], "Expected no request until previous completes")
+
+```
+
+
+
+First of all we simulate the action of loading a new page and we complete the load more action with the image that was originally loaded and we append a new image. So at this moment we are creating two cell controllers, one for the image, we already had, and one for the new image, and if the first **image** was loading data which is the case here, because it is still loading (it still hasnt completed) it will recreate the cell controller and start loading again.
+
+As we can see from the test code provided above, the "simulateFeedImageViewVisible(at: 0)" still has not finished loading, but in the middle of it we triggered a load more, to get a new page, and then, the cell becomes visible **AGAIN** because the load more ation, will trigger the re-creation of the cell controller, which will void the previous **loading** status and start loading again, but it shouldn't, it should still be loading 3 images, which is the state that the flow of our test had before triggering the load more action. 
+
+This is because the load more action doesnt complete the loading from the image, meaning the image from the cell already undergoing loading shouldnt re-trigger an image fetch request.
+
+When we run the previous test, we will get a failure on the last assertion, it says that it has 4 loadedImageURL's when in fact they should be 3.
+
+So we have to stop having cells re-allocated that already exist and avoid having our *isLoading* property voided.
+
+How do we do this?
+
+
+
+Somehow we need to keep track of the existing cellControllers , there are many ways we could do that, we could expose for example all the existing cellControllers from the user inteface from the ListViewController or we can deal with the optimization in the infrastructure directly, in the **FeedViewAdapter** and that would be ideal so that we dont pollute other components with optimizations.
+
+So, we create a lookup table just like we did in the **CoreDataStore** but in this case we will have a **currentFeed** as our lookup table, a dictionary of **[FeedImage: CellController]** . We then initialize our class with the **currentFeed** , starting empty.
+
+```swift
+class FeedViewAdapter {
+....
+....
+private let currentFeed: [FeedImage: CellController]
+...
+...
+init(currentFeed: [FeedImage: CellController] = [:], controller: ListViewController, imageLoader: @escaping (URL) -> FeedImageDataLoader.Publisher, selection: @escaping (FeedImage) -> Void) {
+		self.currentFeed = currentFeed
+		self.controller = controller
+		self.imageLoader = imageLoader
+        self.selection = selection
+	}
+  ...
+  ...
+}
+```
+
+
+
+So now, with this lookup table, when we are creating a new CellController inside the `display(_ viewmodel: )` method, we can check the lookup table for a given model and if we have a value for it, we dont have to recreate it. Good thing about Dictionaries is that we get constant time lookup. So, inside the **display** method, inside the mapping method creating the **feed** (array of cellcontrollers), we check if a CellController already exists for the given **model** and if it does, we return it
+
+```swift
+if let controller = currentFeed[model] {
+				return controller
+}
+```
+
+But, since we need to populate the current feed, we create a mutable version of our currentFeed inside our **display** method, so that if we didn't find the CellController, we will create a new one, append it to the **currentFeed** lookup table for the given model and return it. So next time we look up the CellController in the currentFeed, it will be there. All of this logic happens inside the mapping logic that creates the feed array of CellControllers inside the **display** method.
+
+```swift
+let feed: [CellController] = viewModel.items.map { model in
+            if let controller = currentFeed[model] {
+                return controller
+            }
+            
+            let adapter = ImageDataPresentationAdapter(loader: { [imageLoader] in
+                imageLoader(model.url)
+            })
+            
+            let view = FeedImageCellController(
+                viewModel: FeedImagePresenter.map(model),
+                delegate: adapter,
+                selection: { [selection] in
+                    selection(model)
+                })
+            
+            adapter.presenter = LoadResourcePresenter(
+                resourceView: WeakRefVirtualProxy(view),
+                loadingView: WeakRefVirtualProxy(view),
+                errorView: WeakRefVirtualProxy(view),
+                mapper: UIImage.tryMake)
+            
+            let controller = CellController(id: model, view)
+            currentFeed[model] = controller
+            return controller
+        }
+```
+
+
+
+And, in the following part of the **display** method, when creating a new page instead of using `self`as the **resourceView** for the new **LoadResourceAdapter**, we can create a new **FeedViewAdapter** passing in the **currentFeed** that we just updated/populated, so we just keep passing the **currentFeed** forward, so we never lose track of the pages and we dont need a mutable property. For this we will need to guard that our **controller: ListViewController** property that the **FeedViewAdapter** uses isnt nil, since its initializer requires a non nil controller, since without having a ListViewController we cannot present a new page. (Its important to remember that we are currently holding a weak reference to the **controller: ListViewController**) in our FeedViewAdapter, because we do not want to have a retain cycle, so adding these changes, our final **display(_ viewModel:)** method looks like: 
+
+```swift
+func display(_ viewModel: Paginated<FeedImage>) {
+    guard let controller = controller else { return }
+    
+    var currentFeed = self.currentFeed
+    let feed: [CellController] = viewModel.items.map { model in
+        if let controller = currentFeed[model] {
+            return controller
+        }
+        
+        let adapter = ImageDataPresentationAdapter(loader: { [imageLoader] in
+            imageLoader(model.url)
+        })
+        
+        let view = FeedImageCellController(
+            viewModel: FeedImagePresenter.map(model),
+            delegate: adapter,
+            selection: { [selection] in
+                selection(model)
+            })
+        
+        adapter.presenter = LoadResourcePresenter(
+            resourceView: WeakRefVirtualProxy(view),
+            loadingView: WeakRefVirtualProxy(view),
+            errorView: WeakRefVirtualProxy(view),
+            mapper: UIImage.tryMake)
+        
+        let controller = CellController(id: model, view)
+        currentFeed[model] = controller
+        return controller
+    }
+    
+    guard let loadMorePublisher = viewModel.loadMorePublisher else {
+        controller.display(feed)
+        return
+    }
+    
+    let loadMoreAdapter = LoadMorePresentationAdapter(loader: loadMorePublisher)
+    let loadMore = LoadMoreCellController(callback: loadMoreAdapter.loadResource)
+    
+    loadMoreAdapter.presenter = LoadResourcePresenter(
+        resourceView: FeedViewAdapter(
+            currentFeed: currentFeed,
+            controller: controller,
+            imageLoader: imageLoader,
+            selection: selection
+        ),
+        loadingView: WeakRefVirtualProxy(loadMore),
+        errorView: WeakRefVirtualProxy(loadMore))
+    
+    let loadMoreSection = [CellController(id: UUID(), loadMore)]
+    
+    controller.display(feed, loadMoreSection)
+}
+```
+
+
+
+We run the tests again and we see that they pass: the lookup table has solved our problem. This way we avoid reallocating already existing instances since our instances are somewhat expensive, and also, if we reallocate an existing already allocated instance we are losing our **isLoading** state which we need to avoid unnecesary network fetches.
 
 
 
