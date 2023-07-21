@@ -3247,21 +3247,97 @@ Now, if we run the app again we can see that we have 0 cache misses when reloadi
 
 
 
+As we can see, we didn't even use the tests, because this performance issues are hard to test, thats why we used the network analyzer and logs.
+
+If we pay close attention we can see that when we scroll really fast we are loading more than we should and therefore we are getting images that are being tried to be loaded more than two, three or even five times. 
+
+Taking a look at the FeedImageCellController we can see that we are calling the delegate method of  `didRequestImage` many times and probably the requests are colliding since we are calling it from `cellForRowAt`, `onRetry`, `prefetchRowsAt` . For example, we start preloading a cell because it's about to become visible, and when it becomes visible if it's still loading, we start loading again, because we are requesting the image again. What we could do is avoid requesting again the image load if we are already loading it.
+
+In this case, unlike the previous issue, we can write a test. So we are going to add a new test in the **FeedUIIntegrationTests** to test that a feedImageView already loading an image does not start loading again until previous request completes.
+
+```swift
+func test_feedImageView_doesNotLoadImageAgainUntilPreviousRequestCompletes() {
+    let image = makeImage(url: URL(string: "http://url-0.com")!)
+    let (sut, loader) = makeSUT()
+    sut.loadViewIfNeeded()
+    loader.completeFeedLoading(with: [image])
+    
+    sut.simulateFeedImageViewNearVisible(at: 0)
+    XCTAssertEqual(loader.loadedImageURLs, [image.url], "Expected first request when near visible")
+    
+    sut.simulateFeedImageViewVisible(at: 0)
+    XCTAssertEqual(loader.loadedImageURLs, [image.url], "Expected no request until previous completes")
+    
+    loader.completeImageLoading(at: 0)
+    sut.simulateFeedImageViewVisible(at: 0)
+    XCTAssertEqual(loader.loadedImageURLs, [image.url, image.url], "Expected second request when visible after previous complete")
+    
+    sut.simulateFeedImageViewNotVisible(at: 0)
+    sut.simulateFeedImageViewVisible(at: 0)
+    XCTAssertEqual(loader.loadedImageURLs, [image.url, image.url, image.url], "Expected third request when visible after canceling previous complete")
+}
+```
+
+The idea is that we are testing that, everytime the **FeedImageCells** become either near visible, or visible, the **sut** fires a network request to load the content from that **image.url**, and it gets registered in the  **loader.loadedImageURLS** array. 
+
+With this premise in mind, we first simulate that the desired Cell is about to become near visible, and thus executing a prefetch of that image url, this means that now, in our **loader.loadedImageURLs**  array, we have captured the **image.url** that we are requesting. Now, since the premise is that while a Cell is being fetched, there shouldnt happen another request on the **image.url** of that same Cell, what we do is, without our previous request having finished, simulate that the cell is now visible, thus triggering another network request, on the same cell with the same url. However, this trigger should not happen, and thus, our **loader.loadedImageURLS** array shouldnt add this **image.url**, because the previous request has not yet finished, so what we expect to see is that the urls contained in our array of loaded image urls remains the same as before.
+
+Next step is that we simulate that the image completed loading, and after that we execute, again that the FeedImageCell we are testing is visible, what this does is trigger another network request, meaning that our **loader.loadedImageURLS** array increases in size, adding a new element, which in this case, since we are testing the same cell, it will be another instance of **image.url** for the Cell we are analyzing and therefore our total array of loaded urls is now **[image.url, image.url]**. 
+
+The next step, is that before our previous trigger finishes loading, the Cell we were analyzing goes out of sight, meaning it no longer needs to be loaded. This means that this request must now be cancelled, and therefore, terminated. But immediately after, we simulate that the same Cell is now Visible, this means that, the initial request was cancelled but then we fired a new request, this means that our **loader.loadedImageURLs** that previously holded **[image.url, image.url]** will now add a new instance of that url, because the previous request, if well it did not complete, it was cancelled, and therefore finished, allowing us to begin a new request, therefore the new state of our loaded image urls is : **loader.loadedImageURLS = [image.url, image.url, image.url]**.
 
 
 
+So, a way of preventing this is adding, in the **FeedImageCellController** an `isLoading` property, that checks, everytime that a fetch would be triggered, if it is already loading. But, preventing extra requests when one is already underway, is something we want to have everywhere, not just in the **FeedImageCellController** , so instead of doing it there, we could do it in one component above, one level higher in our design: in the shared **LoadResourcePresentationAdapter** that is used for loading any resource in the app. So if we implement this logic here, we effectively implement it in the whole app, since we don't ever want to use too much data.
 
+So, in the presentation adapter, we are going to add a "**isLoading**" property that we will check, with a **guard** statement, before we begin the loading of any resource. If it's not loading, we will set the property to **true** and proceed to execute the loader **publisher** and **sink** it handling its **receiveCompletion** and its **receivedValue**  as well as the **receivedCancel** events. In both the **receivedCancel** and the **receivedCompletion** event handlings, we will inject a closure where we will set the **isLoading** property to false to inform that the loading has finished. 
 
+```swift
+func loadResource() {
+    guard !isLoading else { return }
+    
+    presenter?.didStartLoading()
+    isLoading = true
+    
+    cancellable = loader()
+        .dispatchOnMainQueue()
+        .handleEvents(receiveCancel: { [weak self] in
+            self?.isLoading = false
+        })
+        .sink(
+            receiveCompletion: { [weak self] completion in
+                switch completion {
+                case .finished: break
+                    
+                case let .failure(error):
+                    self?.presenter?.didFinishLoading(with: error)
+                }
+                
+                self?.isLoading = false
+            }, receiveValue: { [weak self] resource in
+                self?.presenter?.didFinishLoading(with: resource)
+            })
+}
+```
 
+It is important to set it to loading false on **receivedCancel** because otherwise on the cancelled requests we will have issues, and its also important that on our **tests**, we add a **send(completion: .finished) ** event after we simulate the **completeFeedLoading** because otherweise the **receivedComplete** event wont get triggered. This last mentioned thing is neccessary in both our **FeedUIIntegrationTests** aswell as in the **CommentsUIIntegrationTests**, otherwise, when we run the tests we get crashes in runtime because it tries to access out of bounds objects. So, we modify both the **completeFeedLoading** and the **completeCommentsLoading** methods in the following way:
 
+```swift
+// In the CommentsUIIntegrationTests.swift
+func completeCommentsLoading(with comments: [ImageComment] = [], at index: Int = 0) {
+		requests[index].send(comments)
+		requests[index].send(completion: .finished)
+}
+// In the FeedUIIntegrationTests+LoaderSpy.swift
+func completeFeedLoading(with feed: [FeedImage] = [], at index: Int = 0) {
+		feedRequests[index].send(Paginated(items: feed, loadMorePublisher: { [weak self] in
+		    self?.loadMorePublisher() ?? Empty().eraseToAnyPublisher()
+		}))
+		feedRequests[index].send(completion: .finished)
+}
+```
 
-
-
-
-
-
-
-
+A publisher can emit infinite values, but it will only stop sending events when it either fails or when you send a .**finish** event.
 
 
 
