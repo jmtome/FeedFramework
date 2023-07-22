@@ -25,7 +25,9 @@ final class FeedViewAdapter: ResourceView {
         self.selection = selection
     }
     
-    func display(_ viewModel: Paginated<FeedImage>) {
+    public typealias ResourceViewModel = Paginated<FeedImage>
+    
+    func display(_ viewModel: ResourceViewModel) {
         guard let controller = controller else { return }
         
         var currentFeed = self.currentFeed
