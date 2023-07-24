@@ -1,6 +1,6 @@
 
 
-## Comments Feature
+# Comments Feature 
 
 ## Goals 
 
@@ -74,7 +74,7 @@ GET /image/{image-id}/comments
 
 
 
-## Architecture for Base App
+## Architecture for the APP
 
 <img src="/Users/macbook/Library/Application Support/typora-user-images/image-20230707125043480.png" alt="image-20230707125043480" style="zoom: 33%;" />
 
@@ -3511,6 +3511,51 @@ func display(_ viewModel: Paginated<FeedImage>) {
 
 
 We run the tests again and we see that they pass: the lookup table has solved our problem. This way we avoid reallocating already existing instances since our instances are somewhat expensive, and also, if we reallocate an existing already allocated instance we are losing our **isLoading** state which we need to avoid unnecesary network fetches.
+
+
+
+
+
+# Async Injection: Decoupling the Domain from Infra Details 
+
+
+
+- [ ] Eliminating Async Boilerplate & Nested Callbacks (Arrow Code/Pyramid of Doom anti-pattern)
+- [ ] Threading as a Cross-Cutting Concern (Decorator Pattern & Universan Abstractions)
+- [ ] Combine Schedulers
+- [ ] Type Erasure
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
