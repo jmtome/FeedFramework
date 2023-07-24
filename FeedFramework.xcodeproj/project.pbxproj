@@ -65,7 +65,7 @@
 		FA6ED2722A547D4300F23C81 /* FeedImageDataStoreSpy.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6ED2712A547D4300F23C81 /* FeedImageDataStoreSpy.swift */; };
 		FA6ED2742A547E0000F23C81 /* CacheFeedImageDataUseCaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6ED2732A547E0000F23C81 /* CacheFeedImageDataUseCaseTests.swift */; };
 		FA6ED2762A54809100F23C81 /* CoreDataFeedImageDataStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6ED2752A54809100F23C81 /* CoreDataFeedImageDataStoreTests.swift */; };
-		FA6ED27B2A548E2100F23C81 /* CoreDataFeedStore+FeedImageDataLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6ED27A2A548E2100F23C81 /* CoreDataFeedStore+FeedImageDataLoader.swift */; };
+		FA6ED27B2A548E2100F23C81 /* CoreDataFeedStore+FeedImageDataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6ED27A2A548E2100F23C81 /* CoreDataFeedStore+FeedImageDataStore.swift */; };
 		FA6ED27D2A54967200F23C81 /* CoreDataFeedStore+FeedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6ED27C2A54967100F23C81 /* CoreDataFeedStore+FeedStore.swift */; };
 		FA767AFF2A4A87A100C1A77A /* FeedStoreSpecs.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA767AFE2A4A87A100C1A77A /* FeedStoreSpecs.swift */; };
 		FA767B012A4A883D00C1A77A /* XCTestCase+FeedStoreSpecs.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA767B002A4A883D00C1A77A /* XCTestCase+FeedStoreSpecs.swift */; };
@@ -256,7 +256,7 @@
 		FA6ED2732A547E0000F23C81 /* CacheFeedImageDataUseCaseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheFeedImageDataUseCaseTests.swift; sourceTree = "<group>"; };
 		FA6ED2752A54809100F23C81 /* CoreDataFeedImageDataStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataFeedImageDataStoreTests.swift; sourceTree = "<group>"; };
 		FA6ED2792A5489B400F23C81 /* FeedStore2.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = FeedStore2.xcdatamodel; sourceTree = "<group>"; };
-		FA6ED27A2A548E2100F23C81 /* CoreDataFeedStore+FeedImageDataLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CoreDataFeedStore+FeedImageDataLoader.swift"; sourceTree = "<group>"; };
+		FA6ED27A2A548E2100F23C81 /* CoreDataFeedStore+FeedImageDataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CoreDataFeedStore+FeedImageDataStore.swift"; sourceTree = "<group>"; };
 		FA6ED27C2A54967100F23C81 /* CoreDataFeedStore+FeedStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CoreDataFeedStore+FeedStore.swift"; sourceTree = "<group>"; };
 		FA767AFE2A4A87A100C1A77A /* FeedStoreSpecs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedStoreSpecs.swift; sourceTree = "<group>"; };
 		FA767B002A4A883D00C1A77A /* XCTestCase+FeedStoreSpecs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "XCTestCase+FeedStoreSpecs.swift"; sourceTree = "<group>"; };
@@ -619,7 +619,7 @@
 				FA7999E12A4A952D004963A6 /* ManagedFeedImage.swift */,
 				FA7999E42A4A952D004963A6 /* ManagedCache.swift */,
 				FA6ED27C2A54967100F23C81 /* CoreDataFeedStore+FeedStore.swift */,
-				FA6ED27A2A548E2100F23C81 /* CoreDataFeedStore+FeedImageDataLoader.swift */,
+				FA6ED27A2A548E2100F23C81 /* CoreDataFeedStore+FeedImageDataStore.swift */,
 			);
 			path = CoreData;
 			sourceTree = "<group>";
@@ -1271,7 +1271,7 @@
 				FA56CBC22A60CA41005770B8 /* FeedEndpoint.swift in Sources */,
 				FA3C4BC62A5370870091C771 /* ResourceErrorViewModel.swift in Sources */,
 				FA2235DE2A2A932E00A5A9D8 /* URLSessionHTTPClient.swift in Sources */,
-				FA6ED27B2A548E2100F23C81 /* CoreDataFeedStore+FeedImageDataLoader.swift in Sources */,
+				FA6ED27B2A548E2100F23C81 /* CoreDataFeedStore+FeedImageDataStore.swift in Sources */,
 				FA6CEB812A59F18000167D6F /* FeedImageDataMapper.swift in Sources */,
 				FA56CBC42A60CA6A005770B8 /* ImageCommentsAPI.swift in Sources */,
 				FA9339D82A61FB0700261688 /* Paginated.swift in Sources */,

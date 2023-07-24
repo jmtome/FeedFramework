@@ -2,6 +2,7 @@
 //  Copyright © 2019 Essential Developer. All rights reserved.
 //
 
+import os
 import UIKit
 import CoreData
 import Combine
@@ -14,11 +15,19 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         URLSessionHTTPClient(session: URLSession(configuration: .ephemeral))
     }()
     
+    private lazy var logger = Logger(subsystem: "com.jmt.wot.FeedApp.FeedApp", category: "main")
+    
     private lazy var store: FeedStore & FeedImageDataStore = {
-        try! CoreDataFeedStore(
-            storeURL: NSPersistentContainer
-                .defaultDirectoryURL()
-                .appendingPathComponent("feed-store.sqlite"))
+        do {
+            return try CoreDataFeedStore(
+                storeURL: NSPersistentContainer
+                    .defaultDirectoryURL()
+                    .appendingPathComponent("feed-store.sqlite"))
+        } catch {
+            assertionFailure("Failed to instantiate CoreDate store with error: \(error.localizedDescription)")
+            logger.fault("Failed to instantiate CoreDate store with error: \(error.localizedDescription)")
+            return NullStore()
+        }
     }()
     
     private lazy var localFeedLoader: LocalFeedLoader = {
@@ -111,11 +120,69 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         
         return localImageLoader
             .loadImageDataPublisher(from: url)
-            .fallback(to: { [httpClient] in
+            .logCacheMisses(url: url, logger: logger)
+            .fallback(to: { [httpClient, logger] in
                 httpClient
                     .getPublisher(url: url)
+                    .logError(url: url, logger: logger)
+                    .logElapsedTime(url: url, logger: logger)
                     .tryMap(FeedImageDataMapper.map)
                     .caching(to: localImageLoader, using: url)
             })
     }
 }
+
+extension Publisher {
+    func logCacheMisses(url: URL, logger: Logger) -> AnyPublisher<Output, Failure> {
+        return handleEvents(receiveCompletion: { result in
+            if case let .failure(error) = result {
+                logger.trace("Cache miss for url: \(url), with error: \(error.localizedDescription)\n")
+            }
+        })
+        .eraseToAnyPublisher()
+    }
+    func logError(url: URL, logger: Logger) -> AnyPublisher<Output, Failure> {
+        return handleEvents(receiveCompletion: { result in
+            if case let .failure(error) = result {
+                logger.trace("Failed to load url: \(url), with error: \(error.localizedDescription)\n")
+            }
+        })
+        .eraseToAnyPublisher()
+    }
+    
+    func logElapsedTime(url: URL, logger: Logger) -> AnyPublisher<Output, Failure> {
+        var startTime = CACurrentMediaTime()
+
+        return handleEvents(receiveSubscription: { _ in
+            logger.trace("Started loading url: \(url)\n")
+            startTime = CACurrentMediaTime()
+        }, receiveCompletion: { result in
+            let elapsedTime = CACurrentMediaTime() - startTime
+            logger.trace("Finished loading url: \(url) in \(elapsedTime) seconds\n")
+        })
+        .eraseToAnyPublisher()
+    }
+}
+
+//private class HTTPClientProfilingDecorator: HTTPClient {
+//    private let decoratee: HTTPClient
+//    private let logger: Logger
+//
+//    internal init(decoratee: HTTPClient, logger: Logger) {
+//        self.decoratee = decoratee
+//        self.logger = logger
+//    }
+//
+//    func get(from url: URL, completion: @escaping (HTTPClient.Result) -> Void) -> HTTPClientTask {
+//        logger.trace("Started loading url: \(url)\n")
+//        let startTime = CACurrentMediaTime()
+//        return decoratee.get(from: url) { [logger] result in
+//            if case let .failure(error) = result {
+//                logger.trace("Failed to load url: \(url), with error: \(error)\n")
+//            }
+//            let elapsedTime = CACurrentMediaTime() - startTime
+//            logger.trace("Finished loading url: \(url) in \(elapsedTime) seconds\n")
+//            completion(result)
+//        }
+//    }
+//}

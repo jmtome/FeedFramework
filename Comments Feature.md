@@ -2681,25 +2681,836 @@ This pagination with caching we developed are independant/ decoupled from the pa
 
 ## Logging/ Profiling/ Optimizing infrastructure Services
 
+Live #006
+
+- Logging and Profiling as Cross-Cutting Concerns
+- Monitoring Debug and Release builds 
+- Null object pattern
+- Optimizing data consumption
+
+
+
+### Logging
+
+The idea is to do Logging in a clean way, without adding print statements everywhere.
+
+"Log messages provide a continuous record of your app's runtime behaviour, and make it easier to identify problems that can't be caught easily using other techniques" - Apple Docs.
+
+#### Common use cases
+
+- Diagnosing problems without a debugger or when it's difficult to catch in the debugger (for example when the app is in production you cant debug it, or test it, but you can read the log messages)
+- Tracing your app's behavior (e.g., when certain tasks start/end)
+- Auditing
+- Performance monitoring
+- Recording unhandled Errors/Exceptions
+
+#### Common Challenges
+
+From Jeff Atwood (the co-creator of Stack Overflow)
+
+- **Logging means more code** , which obscures your application code.
+- **Logging isn't free**, and logging a lot means constantly writing to disk.
+- **The more you log**, the less you can find.
+- **If it's worth saving to a log file, it's worth showing in the user interface.** Many apps have use cases that do not handle the errors, and just print the unhandled error to a log on the console, without even showing the user what happened, this is terrible, because its like having a silent error that we can't track properly. Sometimes it is better that the app crashes altogether instead of **silently** failing, since at least a crash sends us a crash report and we can see what happened, whereas an unhandled error printed to a log wont help us find and solve the problem, and the user will feel like the app is not working as intended.
+
+
+
+Taking a look in our project we can see that in the SceneDelegate, when we are instantiating the CoreData `store` property we are doing a **try!** to instanciate it, but it could fail. This could happen due to many things, such as no more space left, a faulty migration by the developer, or some other developing error. Many programmers in this situation would choose not to have a throwing function in order for the app not to crash, and just ignore the errors or print them. It's also very commo to see a lot of code full of guards and returns that dont handle the errors.
+
+**Safe code isnt necessarily about the app never crashing, safe code doesn't allow the system to get into a weird state, if the system gets into a weird state, the safe thing to do is crash, because then we preserve the identity of the system.** 
+
+We don't want to mask the errors with print statements!.
+
+
+
+In our app, the CoreData store is not *critical*, since if it failed, our app would still work with internet, since the core data store is a fallback. In these cases, when a component is not crucial, we can replace a faulty component with another at runtime, for example we could replace a faulty coredata instance with our in-memory store (which would have to be made thread safe if we were to use it). Another strategy is to use the **Null-Object Pattern**.
+
+
+
+### Null Object Pattern
+
+"A null object is an object with no referenced value or with a defined natural ("null") behaviour"
+
+For example, we can create a NullStore that implements the protocols it needs to, and it will provide a default neutral behaviour, a behaviour that will not leave your system in a weird state but will do the minimum possible. For example
+
+```swift
+class NullStore: FeedStore & FeedImageDataStore {}	
+```
+
+Which will implement all the methods needed by the protocol conformance:
+
+```swift
+class NullStore: FeedStore & FeedImageDataStore {
+    func deleteCachedFeed(completion: @escaping DeletionCompletion) {
+        
+    }
+    
+    func insert(_ feed: [FeedFramework.LocalFeedImage], timestamp: Date, completion: @escaping InsertionCompletion) {
+        
+    }
+    
+    func retrieve(completion: @escaping RetrievalCompletion) {
+        
+    }
+    
+    func insert(_ data: Data, for url: URL, completion: @escaping (InsertionResult) -> Void) {
+        
+    }
+    
+    func retrieve(dataForURL url: URL, completion: @escaping (RetrievalResult) -> Void) {
+        
+    }
+}
+```
+
+So, what is the neutral behaviour for a **deleteCachedFeed**? It needs to at least complete the operation so the clients wont be hanging forever, to which we should get a .success(), because yes, there is no cache, but it didnt fail.
+
+When **insert** ?, the same, we just complete with .success().
+
+When **retrieve**? completion with .success(.none), it couldnt retrieve anything, but the operation completes successfully.
+
+This **Neutral** behaviour depends from case to case, in our case we just need it to complete with success, so as not to break the flow of the app. For example if we have a method that does not take arguments and returns a void, we can simply do nothing.
+
+Here is our finished **NullStore**: 
+
+```swift
+class NullStore: FeedStore & FeedImageDataStore {
+    func deleteCachedFeed(completion: @escaping DeletionCompletion) {
+        completion(.success(()))
+    }
+    
+    func insert(_ feed: [FeedFramework.LocalFeedImage], timestamp: Date, completion: @escaping InsertionCompletion) {
+        completion(.success(()))
+    }
+    
+    func retrieve(completion: @escaping RetrievalCompletion) {
+        completion(.success(.none))
+    }
+    
+    func insert(_ data: Data, for url: URL, completion: @escaping (InsertionResult) -> Void) {
+        completion(.success(()))
+    }
+    
+    func retrieve(dataForURL url: URL, completion: @escaping (FeedImageDataStore.RetrievalResult) -> Void) {
+        completion(.success(.none))
+    }
+}
+```
+
+
+
+Now we can change the declaration of our **store** in the SceneDelegate, not to force try, but with a Do-Catch, and in case it fails, we return a NullStore:
+
+```swift
+ private lazy var store: FeedStore & FeedImageDataStore = {
+        do {
+            return try CoreDataFeedStore(
+                storeURL: NSPersistentContainer
+                    .defaultDirectoryURL()
+                    .appendingPathComponent("feed-store.sqlite"))
+        } catch {
+            return NullStore()
+        }
+    }()
+```
+
+If for example a migration fails on some devices, this way the app wont crash. But truly what we want now is to be notified when these problems happen, usually, we could add a **print** statement in the catch of the previous instantiation. But the more **log** messages we see on the console the less attention we will pay to them. But this is not nice, and we can't use it, before this at least if the store failed, the app would crash, this way the error gets buried in prints, so we want it to at least be able to crash on **debug** builds, so that when in testing, we can see it crash, so we are notified quickly of any programmer mistake.
+
+What we can do for this is to add an **assertionFailure** to the catch block instead of a print, because **assertionFailure** will cause a crash on debug builds, but not on release builds. So the catch would look like this:
+
+```swift
+catch {
+            assertionFailure("Failed to instantiate CoreDate store with error: \(error.localizedDescription)")
+            return NullStore()
+        }
+```
+
+
+
+But what if a programmer mistake is released by mistake? For example a faulty CoreData migration that only happens on specific devices that we couldn't catch on debug?. 
+
+So, when we want to be notified of faulty behaviour in our release builds, we can use a logger library, there are many out there like for example **Firebase Crashalytics**, in our case we are going to be using the **Logger** **library** from **Apple's** **OS** **Framework** , simply by importing "os".
+
+So we will now create a new property **logger: Logger** (Logger only works from iOS14+)
+
+``` swift
+private lazy var logger = Logger(subsystem: "com.CompanyIdentifier.OurApp", category: "main")		
+```
+
+where the "subsystem" parameter makes reference to the **Bundle Identifier** set in **Signing & Capabilities** under the **Team**, and "category" is usually the module you are loading (which in this case doesnt make reference to anything in particular).
+
+Now we can use this logger, or whatever logger library we are using to log the failure:
+
+```swift
+catch {
+            assertionFailure("Failed to instantiate CoreDate store with error: \(error.localizedDescription)")
+            logger.fault("Failed to instantiate CoreDate store with error: \(error.localizedDescription)")
+            return NullStore()
+        }
+```
+
+Now we will have the error also logged, so that if it happens in production we can check for it.
+
+So, the main idea is : 
+
+- **Don't ignore errors**
+- **Don't let your app get into a weird state**
+- **Provide a fallback strategy if you can** (and when you do, log the errors)
+- **If the issue is really critical, it's better to crash the app than to get into a weird state where the App becomes unusable and must be reinstalled** 
+
+Another thing that is important that we can see here, is that we are adding the **log** in the error handling not within the instance that generated the error (**CoreDataFeedStore**), but from the main module in the **Composition Root**, and this is how you avoid having to inject loggers or even access global loggers from every module in your app, with a good application design you'll be able to apply logging without polluting your entire codebase. (We could of course have passed a logger to all of our objects such as **CoreDataFeedStore**, but that only pollutes the code, and its an extra dependency to which the objects don't need to know about, because they dont use it.)
+
+Logging is not free, it should be decided in the main module how to do it and when to do it and the more you log, the less you can find, so logs should be kept at a minimum for really critical errors and issues.
+
+
+
+All of this said, is about tracing and monitoring errors in production, what about tracing debug logs to help find issues in debug?.
+
+For example, lets profile the network request in our app:
+
+![image-20230719213336858](/Users/macbook/Library/Application Support/typora-user-images/image-20230719213336858.png)
+
+We can see that as we scroll through the feed, new connections and consumptions start appearing in the network activity report:
+
+![image-20230719213429174](/Users/macbook/Library/Application Support/typora-user-images/image-20230719213429174.png)
+
+As we pull to refresh or scroll through the feed to load more items, we can easily see how our Network Data Consumption rises, which may sometimes be quite inconvenient for users on Cellular Networks. We can see that everytime we do a pull to refresh, we are loading all the images again, so what if we want to trace those requests to help us reduce the data usage? Of course we could use **Instruments** , but what if we want to keep track of these requests, which ones were rejected, which ones completed?
+
+ We couldn't write tests since its very hard to write tests to track these metrics/issues/performance improvements/data consumption, but what we can use are **logs**, but they are usually temporary trace logs, because we dont want to leave them in the app, we dont want them in release or in debug (we dont want to have thousands of log messages in the console), and we also want to be able to trace and add these logging behaviour without polluting our modules, because logging is a cross-cutting concern that can be injected from the Composition-Root, but we don't want to inject these modules everywhere or use a singleton that can lead to race conditions or other problems.
+
+So, how do we deal with cross-cutting concerns? -> with the Decorator Pattern, we can inject the logging, by decorating an **httpClient**: 
+
+```swift
+private class HTTPClientProfilingDecorator: HTTPClient {
+    private let decoratee: HTTPClient
+    private let logger: Logger
+    
+    internal init(decoratee: HTTPClient, logger: Logger) {
+        self.decoratee = decoratee
+        self.logger = logger
+    }
+    
+    func get(from url: URL, completion: @escaping (HTTPClient.Result) -> Void) -> HTTPClientTask {
+        logger.trace("Started loading url: \(url)")
+        return decoratee.get(from: url) { [logger] result in
+            logger.trace("Finished loading url: \(url)")
+            completion(result)
+        }
+    }
+}
+```
+
+So all we do here is use a decorator, to _decorate_ our HTTPClient, by adding two trace logs that log when a url started loading and when the url finished loading, and then we just simply forward the decoratee's message, this way we can easily add desired behaviour to an existing component without modifying it, satisfying the open-closed principle. Basically a Decorator is a wrapper, that wraps our existing object and adds functionality to it.
+
+The idea is to track the loading of the images, so we will use the decorated client in the **makeLocalImageWithRemoteFallback(url:URL)** method in our SceneDelegate:
+
+```swift
+private func makeLocalImageLoaderWithRemoteFallback(url: URL) -> FeedImageDataLoader.Publisher {
+     let wrappedClient = HTTPClientProfilingDecorator(decoratee: httpClient, logger: logger)
+     
+     let localImageLoader = LocalFeedImageDataLoader(store: store)
+     
+     return localImageLoader
+         .loadImageDataPublisher(from: url)
+         .fallback(to: { 
+             wrappedClient
+                 .getPublisher(url: url)
+                 .tryMap(FeedImageDataMapper.map)
+                 .caching(to: localImageLoader, using: url)
+         })
+    }
+}
+```
+
+Here we have replaced the already existing httpClient for the wrappedClient that has the logger.
+
+Now we run the app, and in the console we can read: 
+
+![image-20230719230515997](/Users/macbook/Library/Application Support/typora-user-images/image-20230719230515997.png)
+
+We see that our logger is working properly, logging when the loading starts and when it finishes.
+
+We could also log how long the request took and also add a log in case of failure:
+
+```swift
+private class HTTPClientProfilingDecorator: HTTPClient {
+    private let decoratee: HTTPClient
+    private let logger: Logger
+    
+    internal init(decoratee: HTTPClient, logger: Logger) {
+        self.decoratee = decoratee
+        self.logger = logger
+    }
+    
+    func get(from url: URL, completion: @escaping (HTTPClient.Result) -> Void) -> HTTPClientTask {
+        logger.trace("Started loading url: \(url)")
+        let startTime = CACurrentMediaTime()
+        return decoratee.get(from: url) { [logger] result in
+            if case let .failure(error) = result {
+                logger.trace("Failer to load url: \(url), with error: \(error.localizedDescription)")
+            }
+            let elapsedTime = CACurrentMediaTime() - startTime
+            logger.trace("Finished loading url: \(url) in \(elapsedTime) seconds")
+            completion(result)
+        }
+    }
+}
+```
+
+
+
+Here we can see the console output of the logger:
+
+![image-20230719231606572](/Users/macbook/Library/Application Support/typora-user-images/image-20230719231606572.png)
+
+we can see that we have the start logs, the finish logs, the elapsed times and the logged errors.
+
+We only replaced a decorated for a decoratee for the fetch of images, but we could easily replace the main **httpClient** and log everything that goes through the client, but this could easily get out of hand, to do it universal we would do: 
+
+```swift
+ private lazy var httpClient: HTTPClient = {
+        HTTPClientProfilingDecorator(decoratee: URLSessionHTTPClient(session: URLSession(configuration: .ephemeral)), logger: logger)
+    }()
+```
+
+Wrapping our existing URLSessionHTTPCLient.
+
+The conclusion, though, is that you do not need to pollute your entire codebase with logging, you can just log the infrastructure errors, because normally you want to log performance, and performance is usually talking to a database or to the network, or the ui, all infrastructure, and you do the infrastructure in the infrastructure layer, you dont need to pollute your business layer with a bunch of logs. No business rule should know about the logging, that is why we do all this in the composition root including the performance logging.
+
+If we are using Combine, in fact, we dont even need to create the decorator we created, because with Combine, we can inject logging directly in to the publisher chain, using the **.handleEvents()** publisher that allows you to inject side effects according to the state of the subscription, since the handleEvents method can subscribe to the different stages of the subscription, we can inject code on subscription, on cancel, complete :
+
+![image-20230719233658969](/Users/macbook/Library/Application Support/typora-user-images/image-20230719233658969.png)
+
+For example, we could do the exact same thing that we did with the decorator the following way:
+
+```swift
+private func makeLocalImageLoaderWithRemoteFallback(url: URL) -> FeedImageDataLoader.Publisher {
+    let localImageLoader = LocalFeedImageDataLoader(store: store)
+    
+    return localImageLoader
+        .loadImageDataPublisher(from: url)
+        .fallback(to: { [logger, httpClient] in
+            var startTime = CACurrentMediaTime()
+            return httpClient
+                .getPublisher(url: url)
+                .handleEvents(receiveSubscription: { [logger] _ in
+                    logger.trace("Started loading url: \(url)")
+                    startTime = CACurrentMediaTime()
+                }, receiveCompletion: { [logger] result in
+                    if case let .failure(error) = result {
+                        logger.trace("Failed to load url: \(url), with error: \(error.localizedDescription)")
+                    }
+                    let elapsedTime = CACurrentMediaTime() - startTime
+                    logger.trace("Finished loading url: \(url) in \(elapsedTime) seconds")
+                })
+                .tryMap(FeedImageDataMapper.map)
+                .caching(to: localImageLoader, using: url)
+        })
+}
+```
+
+
+
+And the logging follows:
+
+![image-20230719233947398](/Users/macbook/Library/Application Support/typora-user-images/image-20230719233947398.png)
+
+Which means we could do without the decorator we created earlier.
+
+We can go one step further, so as not to pollute our existing code and create a **Combine** extension of **Publisher** and do:
+
+```swift
+extension Publisher {
+    func logElapsedTime(url: URL, logger: Logger) -> AnyPublisher<Output, Failure> {
+        var startTime = CACurrentMediaTime()
+
+        return handleEvents(receiveSubscription: { _ in
+            logger.trace("Started loading url: \(url)")
+            startTime = CACurrentMediaTime()
+        }, receiveCompletion: { result in
+            if case let .failure(error) = result {
+                logger.trace("Failed to load url: \(url), with error: \(error.localizedDescription)")
+            }
+            let elapsedTime = CACurrentMediaTime() - startTime
+            logger.trace("Finished loading url: \(url) in \(elapsedTime) seconds")
+        })
+        .eraseToAnyPublisher()
+    }
+}
+```
+
+And then chain it in our publisher stream:
+
+```swift
+private func makeLocalImageLoaderWithRemoteFallback(url: URL) -> FeedImageDataLoader.Publisher {
+        let localImageLoader = LocalFeedImageDataLoader(store: store)
+        
+        return localImageLoader
+            .loadImageDataPublisher(from: url)
+            .fallback(to: { [logger, httpClient] in
+                return httpClient
+                    .getPublisher(url: url)
+                    .logElapsedTime(url: url, logger: logger)
+                    .tryMap(FeedImageDataMapper.map)
+                    .caching(to: localImageLoader, using: url)
+            })
+    }
+```
+
+And we get the same loggin results.
+
+We could even break the login into elapsed time and log error:
+
+```swift
+extension Publisher {
+    func logError(url: URL, logger: Logger) -> AnyPublisher<Output, Failure> {
+        return handleEvents(receiveCompletion: { result in
+            if case let .failure(error) = result {
+                logger.trace("Failed to load url: \(url), with error: \(error.localizedDescription)")
+            }
+        })
+        .eraseToAnyPublisher()
+    }
+    
+    func logElapsedTime(url: URL, logger: Logger) -> AnyPublisher<Output, Failure> {
+        var startTime = CACurrentMediaTime()
+
+        return handleEvents(receiveSubscription: { _ in
+            logger.trace("Started loading url: \(url)")
+            startTime = CACurrentMediaTime()
+        }, receiveCompletion: { result in
+            let elapsedTime = CACurrentMediaTime() - startTime
+            logger.trace("Finished loading url: \(url) in \(elapsedTime) seconds")
+        })
+        .eraseToAnyPublisher()
+    }
+}
+```
+
+
+
+And now we can separately just log what we are interested in:
+
+```swift
+private func makeLocalImageLoaderWithRemoteFallback(url: URL) -> FeedImageDataLoader.Publisher {
+        let localImageLoader = LocalFeedImageDataLoader(store: store)
+        
+        return localImageLoader
+            .loadImageDataPublisher(from: url)
+            .fallback(to: { [logger, httpClient] in
+                return httpClient
+                    .getPublisher(url: url)
+                    .logError(url: url, logger: logger)
+                    .logElapsedTime(url: url, logger: logger)
+                    .tryMap(FeedImageDataMapper.map)
+                    .caching(to: localImageLoader, using: url)
+            })
+    }
+```
+
+We see how we can **inject** the logging behaviour into the **chain** , and if we are not using combine, we can use the method described with the decorator.
+
+
+
+So with this logging we wound an issue: every time we reload, we reload all the images again. But, the cache should prevent reloading the same images again, so we can optimize the data consumption. We can also trace for cache misses (how many times it tries to find an image in the cache and it was empty).
+
+So lets add a new logger in the same combine chain.
+
+
+
+```swift
+func logCacheMisses(url: URL, logger: Logger) -> AnyPublisher<Output, Failure> {
+        return handleEvents(receiveCompletion: { result in
+            if case let .failure(error) = result {
+                logger.trace("Cache miss for url: \(url), with error: \(error.localizedDescription)\n")
+            }
+        })
+        .eraseToAnyPublisher()
+    }
+```
+
+
+
+```swift
+private func makeLocalImageLoaderWithRemoteFallback(url: URL) -> FeedImageDataLoader.Publisher {
+        let localImageLoader = LocalFeedImageDataLoader(store: store)
+        
+        return localImageLoader
+            .loadImageDataPublisher(from: url)
+            .logCacheMisses(url: url, logger: logger)
+            .fallback(to: { [logger, httpClient] in
+                return httpClient
+                    .getPublisher(url: url)
+                    .logError(url: url, logger: logger)
+                    .logElapsedTime(url: url, logger: logger)
+                    .tryMap(FeedImageDataMapper.map)
+                    .caching(to: localImageLoader, using: url)
+            })
+    }
+```
+
+
+
+And now we can start logging the cache misses. We can see that every time we execute a reload, the number of cache misses increases constantly. It seems that the cache is failing for a lot of url's, if the cache worked properly we would avoid doing a lot of requests. So the next step is to optimize CoreData implementation to reduce cache misses.
 
 
 
 
 
+Checking our existing code:
+
+```swift
+extension LocalFeedLoader: FeedCache {
+    public typealias SaveResult = FeedCache.Result
+    
+    public func save(_ feed: [FeedImage], completion: @escaping (SaveResult) -> Void) {
+        store.deleteCachedFeed { [weak self] deletionResult in
+            guard let self = self else { return }
+            
+            switch deletionResult {
+            case.success:
+                self.cache(feed, with: completion)
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+    }
+    
+    private func cache(_ feed: [FeedImage], with completion: @escaping (SaveResult) -> Void) {
+        store.insert(feed.toLocal(), timestamp: currentDate()) { [weak self] error in
+            guard self != nil else { return }
+           
+            completion(error)
+        }
+    }
+}
+```
 
 
 
+We can see, that when we save new images, we are deleting the existing cache to add the new one, and in doing so we are deleteing all the existing images, and if the new cache happens to contain the same images we have to load them again, which consumes resources unnecesarily, so we can change this implementation, we could handle **diffing** (seeing what is different and only removing what is different), but this would also complicate the service logic (the LocalFeedLoader). Deleting and Inserting is much simpler, it's usually its better to improve the performance in the infrastructure implementation so you dont pollute your services with performance improvements, because performance improvements are usually in the infrastructure, like if a database is too slow we can create an index for example.
+
+Because if we start adding performance improvements in our services classes or our business logic its going to become very hard to mantain it, so what if instead we improved the performance in our infrastructure **CoreDataStore**, this way we wouldnt need to complicate our Loader service (LoadFeedLoader). 
 
 
 
+So we go to the infrastructure, to **ManagedFeedImage**, so can how we keep track of all the deleted FeedImages? 
+
+First, we can override `prepareForDeletion` which is called for each **CoreData** entity before its deletion. And we could store its image data in a temporary place. One way we can do it is to store it in the managedObjectContext?.userInfo dictionary which is not persisted in disk, its just a temporary lookup dictionary. So we can store here the data for that instance, if any for its **url** , before deleting. And when we are creating new images, we can try to find data for that url in the temporary cache:
 
 
 
+```swift
+static func images(from localFeed: [LocalFeedImage], in context: NSManagedObjectContext) -> NSOrderedSet {
+		let images =  NSOrderedSet(array: localFeed.map { local in
+			let managed = ManagedFeedImage(context: context)
+			managed.id = local.id
+			managed.imageDescription = local.description
+			managed.location = local.location
+			managed.url = local.url
+            managed.data = context.userInfo[local.url] as? Data
+			return managed
+		})
+        context.userInfo.removeAllObjects()
+        
+        return images
+	}
+
+override func prepareForDeletion() {
+    super.prepareForDeletion()
+    
+    managedObjectContext?.userInfo[url] = data
+}
+```
+
+So, we are performing this optimization **IN THE INFRASTRUCTURE .**
+
+Its important to note that we have to clear the temporary dictionary lookup table or we will be holding hundreds of images at some point , so in the same static method `images(from:...)` we remove all objects from the context like we can see in the previous code.
 
 
 
+The idea with all this is that when we delete the existing cache to add a new cache, we will briefly store the active cache to then assign it to the new cache we are just creating, and at that moment we clean the dictionary. This dictionary secondary cache will have a very short lived life.
+
+Another optimization we can do is in the static method `data(with url...)` we can first look up in the userInfo context dictionary to see if the data for the url exists in our temporary cache and if it does we return it immediately, so if we have the data in our temporary cache, we use it instead of making a database request which is much slower, because a dictionary lookup happens in constant time:
+
+```swift
+static func data(with url: URL, in context: NSManagedObjectContext) throws -> Data? {
+        if let data = context.userInfo[url] as? Data { return data }
+        
+        return try first(with: url, in: context)?.data
+    }
+```
 
 
+
+Now, if we run the app again we can see that we have 0 cache misses when reloading, and the only misses we see are the ones related to the image not being in the cache for the first time.
+
+
+
+As we can see, we didn't even use the tests, because this performance issues are hard to test, thats why we used the network analyzer and logs.
+
+If we pay close attention we can see that when we scroll really fast we are loading more than we should and therefore we are getting images that are being tried to be loaded more than two, three or even five times. 
+
+Taking a look at the FeedImageCellController we can see that we are calling the delegate method of  `didRequestImage` many times and probably the requests are colliding since we are calling it from `cellForRowAt`, `onRetry`, `prefetchRowsAt` . For example, we start preloading a cell because it's about to become visible, and when it becomes visible if it's still loading, we start loading again, because we are requesting the image again. What we could do is avoid requesting again the image load if we are already loading it.
+
+In this case, unlike the previous issue, we can write a test. So we are going to add a new test in the **FeedUIIntegrationTests** to test that a feedImageView already loading an image does not start loading again until previous request completes.
+
+```swift
+func test_feedImageView_doesNotLoadImageAgainUntilPreviousRequestCompletes() {
+    let image = makeImage(url: URL(string: "http://url-0.com")!)
+    let (sut, loader) = makeSUT()
+    sut.loadViewIfNeeded()
+    loader.completeFeedLoading(with: [image])
+    
+    sut.simulateFeedImageViewNearVisible(at: 0)
+    XCTAssertEqual(loader.loadedImageURLs, [image.url], "Expected first request when near visible")
+    
+    sut.simulateFeedImageViewVisible(at: 0)
+    XCTAssertEqual(loader.loadedImageURLs, [image.url], "Expected no request until previous completes")
+    
+    loader.completeImageLoading(at: 0)
+    sut.simulateFeedImageViewVisible(at: 0)
+    XCTAssertEqual(loader.loadedImageURLs, [image.url, image.url], "Expected second request when visible after previous complete")
+    
+    sut.simulateFeedImageViewNotVisible(at: 0)
+    sut.simulateFeedImageViewVisible(at: 0)
+    XCTAssertEqual(loader.loadedImageURLs, [image.url, image.url, image.url], "Expected third request when visible after canceling previous complete")
+}
+```
+
+The idea is that we are testing that, everytime the **FeedImageCells** become either near visible, or visible, the **sut** fires a network request to load the content from that **image.url**, and it gets registered in the  **loader.loadedImageURLS** array. 
+
+With this premise in mind, we first simulate that the desired Cell is about to become near visible, and thus executing a prefetch of that image url, this means that now, in our **loader.loadedImageURLs**  array, we have captured the **image.url** that we are requesting. Now, since the premise is that while a Cell is being fetched, there shouldnt happen another request on the **image.url** of that same Cell, what we do is, without our previous request having finished, simulate that the cell is now visible, thus triggering another network request, on the same cell with the same url. However, this trigger should not happen, and thus, our **loader.loadedImageURLS** array shouldnt add this **image.url**, because the previous request has not yet finished, so what we expect to see is that the urls contained in our array of loaded image urls remains the same as before.
+
+Next step is that we simulate that the image completed loading, and after that we execute, again that the FeedImageCell we are testing is visible, what this does is trigger another network request, meaning that our **loader.loadedImageURLS** array increases in size, adding a new element, which in this case, since we are testing the same cell, it will be another instance of **image.url** for the Cell we are analyzing and therefore our total array of loaded urls is now **[image.url, image.url]**. 
+
+The next step, is that before our previous trigger finishes loading, the Cell we were analyzing goes out of sight, meaning it no longer needs to be loaded. This means that this request must now be cancelled, and therefore, terminated. But immediately after, we simulate that the same Cell is now Visible, this means that, the initial request was cancelled but then we fired a new request, this means that our **loader.loadedImageURLs** that previously holded **[image.url, image.url]** will now add a new instance of that url, because the previous request, if well it did not complete, it was cancelled, and therefore finished, allowing us to begin a new request, therefore the new state of our loaded image urls is : **loader.loadedImageURLS = [image.url, image.url, image.url]**.
+
+
+
+So, a way of preventing this is adding, in the **FeedImageCellController** an `isLoading` property, that checks, everytime that a fetch would be triggered, if it is already loading. But, preventing extra requests when one is already underway, is something we want to have everywhere, not just in the **FeedImageCellController** , so instead of doing it there, we could do it in one component above, one level higher in our design: in the shared **LoadResourcePresentationAdapter** that is used for loading any resource in the app. So if we implement this logic here, we effectively implement it in the whole app, since we don't ever want to use too much data.
+
+So, in the presentation adapter, we are going to add a "**isLoading**" property that we will check, with a **guard** statement, before we begin the loading of any resource. If it's not loading, we will set the property to **true** and proceed to execute the loader **publisher** and **sink** it handling its **receiveCompletion** and its **receivedValue**  as well as the **receivedCancel** events. In both the **receivedCancel** and the **receivedCompletion** event handlings, we will inject a closure where we will set the **isLoading** property to false to inform that the loading has finished. 
+
+```swift
+func loadResource() {
+    guard !isLoading else { return }
+    
+    presenter?.didStartLoading()
+    isLoading = true
+    
+    cancellable = loader()
+        .dispatchOnMainQueue()
+        .handleEvents(receiveCancel: { [weak self] in
+            self?.isLoading = false
+        })
+        .sink(
+            receiveCompletion: { [weak self] completion in
+                switch completion {
+                case .finished: break
+                    
+                case let .failure(error):
+                    self?.presenter?.didFinishLoading(with: error)
+                }
+                
+                self?.isLoading = false
+            }, receiveValue: { [weak self] resource in
+                self?.presenter?.didFinishLoading(with: resource)
+            })
+}
+```
+
+Its important to **weakify self** inside the publisher, otherwise we will create a retain cycle, since we are already holding the cancellation token.
+
+It is important to set it to loading false on **receivedCancel** because otherwise on the cancelled requests we will have issues, and its also important that on our **tests**, we add a **send(completion: .finished) ** event after we simulate the **completeFeedLoading** because otherweise the **receivedComplete** event wont get triggered. This last mentioned thing is neccessary in both our **FeedUIIntegrationTests** aswell as in the **CommentsUIIntegrationTests**, otherwise, when we run the tests we get crashes in runtime because it tries to access out of bounds objects. So, we modify both the **completeFeedLoading** and the **completeCommentsLoading** methods in the following way:
+
+```swift
+// In the CommentsUIIntegrationTests.swift
+func completeCommentsLoading(with comments: [ImageComment] = [], at index: Int = 0) {
+		requests[index].send(comments)
+		requests[index].send(completion: .finished)
+}
+// In the FeedUIIntegrationTests+LoaderSpy.swift
+func completeFeedLoading(with feed: [FeedImage] = [], at index: Int = 0) {
+		feedRequests[index].send(Paginated(items: feed, loadMorePublisher: { [weak self] in
+		    self?.loadMorePublisher() ?? Empty().eraseToAnyPublisher()
+		}))
+		feedRequests[index].send(completion: .finished)
+}
+```
+
+A publisher can emit infinite values, but it will only stop sending events when it either fails or when you send a .**finish** event.
+
+
+
+Ideally though, you shouldnt log everything. If there is a test for it, you should test it with a test and not a log. 
+
+
+
+We can still see that some images are still being loaded multiple times which is more than what we would want. We still have performance improvements we can make. It seems that everytime we load a new page, we repeat some image requests, thats probably because every time we load a new page we append the cache items into the new page and we recreate all the cell controllers in the **feedviewadapter**, so everytime we get a new page we dont get only the new items, we get all the items, the cached ones appended with the new ones, and the implementation currently simply iterates through that collection of paginated items and recreates all the cell controllers. 
+
+This is not efficient, it works, but its not efficient. 
+
+So in this case, in our FeedViewAdapter we could reuse the existing cellcontrollers from previous pages that were already created and allocated and just append new pages into it, so we avoid a bunch of allocations and we avoid recreating presentation adapters because then we would lose the **isLoading** state.
+
+For this case we can write an extra assertion in our already existing test `test_feedImageView_doesNotLoadImageAgainUntilPreviousRequestCompletes` in the **FeedUIIntegrationTests** , at the end of the existing test we can add:
+
+```swift
+// Previous flow of the test
+sut.simulateFeedImageViewNotVisible(at: 0)
+sut.simulateFeedImageViewVisible(at: 0)
+XCTAssertEqual(loader.loadedImageURLs, [image.url, image.url, image.url], "Expected third request when visible after canceling previous complete")
+
+// New assertions in the test
+sut.simulateLoadMoreFeedAction()
+loader.completeLoadMore(with: [image, makeImage()])
+sut.simulateFeedImageViewVisible(at: 0)
+XCTAssertEqual(loader.loadedImageURLs, [image.url, image.url, image.url], "Expected no request until previous completes")
+
+```
+
+
+
+First of all we simulate the action of loading a new page and we complete the load more action with the image that was originally loaded and we append a new image. So at this moment we are creating two cell controllers, one for the image, we already had, and one for the new image, and if the first **image** was loading data which is the case here, because it is still loading (it still hasnt completed) it will recreate the cell controller and start loading again.
+
+As we can see from the test code provided above, the "simulateFeedImageViewVisible(at: 0)" still has not finished loading, but in the middle of it we triggered a load more, to get a new page, and then, the cell becomes visible **AGAIN** because the load more ation, will trigger the re-creation of the cell controller, which will void the previous **loading** status and start loading again, but it shouldn't, it should still be loading 3 images, which is the state that the flow of our test had before triggering the load more action. 
+
+This is because the load more action doesnt complete the loading from the image, meaning the image from the cell already undergoing loading shouldnt re-trigger an image fetch request.
+
+When we run the previous test, we will get a failure on the last assertion, it says that it has 4 loadedImageURL's when in fact they should be 3.
+
+So we have to stop having cells re-allocated that already exist and avoid having our *isLoading* property voided.
+
+How do we do this?
+
+
+
+Somehow we need to keep track of the existing cellControllers , there are many ways we could do that, we could expose for example all the existing cellControllers from the user inteface from the ListViewController or we can deal with the optimization in the infrastructure directly, in the **FeedViewAdapter** and that would be ideal so that we dont pollute other components with optimizations.
+
+So, we create a lookup table just like we did in the **CoreDataStore** but in this case we will have a **currentFeed** as our lookup table, a dictionary of **[FeedImage: CellController]** . We then initialize our class with the **currentFeed** , starting empty.
+
+```swift
+class FeedViewAdapter {
+....
+....
+private let currentFeed: [FeedImage: CellController]
+...
+...
+init(currentFeed: [FeedImage: CellController] = [:], controller: ListViewController, imageLoader: @escaping (URL) -> FeedImageDataLoader.Publisher, selection: @escaping (FeedImage) -> Void) {
+		self.currentFeed = currentFeed
+		self.controller = controller
+		self.imageLoader = imageLoader
+        self.selection = selection
+	}
+  ...
+  ...
+}
+```
+
+
+
+So now, with this lookup table, when we are creating a new CellController inside the `display(_ viewmodel: )` method, we can check the lookup table for a given model and if we have a value for it, we dont have to recreate it. Good thing about Dictionaries is that we get constant time lookup. So, inside the **display** method, inside the mapping method creating the **feed** (array of cellcontrollers), we check if a CellController already exists for the given **model** and if it does, we return it
+
+```swift
+if let controller = currentFeed[model] {
+				return controller
+}
+```
+
+But, since we need to populate the current feed, we create a mutable version of our currentFeed inside our **display** method, so that if we didn't find the CellController, we will create a new one, append it to the **currentFeed** lookup table for the given model and return it. So next time we look up the CellController in the currentFeed, it will be there. All of this logic happens inside the mapping logic that creates the feed array of CellControllers inside the **display** method.
+
+```swift
+let feed: [CellController] = viewModel.items.map { model in
+            if let controller = currentFeed[model] {
+                return controller
+            }
+            
+            let adapter = ImageDataPresentationAdapter(loader: { [imageLoader] in
+                imageLoader(model.url)
+            })
+            
+            let view = FeedImageCellController(
+                viewModel: FeedImagePresenter.map(model),
+                delegate: adapter,
+                selection: { [selection] in
+                    selection(model)
+                })
+            
+            adapter.presenter = LoadResourcePresenter(
+                resourceView: WeakRefVirtualProxy(view),
+                loadingView: WeakRefVirtualProxy(view),
+                errorView: WeakRefVirtualProxy(view),
+                mapper: UIImage.tryMake)
+            
+            let controller = CellController(id: model, view)
+            currentFeed[model] = controller
+            return controller
+        }
+```
+
+
+
+And, in the following part of the **display** method, when creating a new page instead of using `self`as the **resourceView** for the new **LoadResourceAdapter**, we can create a new **FeedViewAdapter** passing in the **currentFeed** that we just updated/populated, so we just keep passing the **currentFeed** forward, so we never lose track of the pages and we dont need a mutable property. For this we will need to guard that our **controller: ListViewController** property that the **FeedViewAdapter** uses isnt nil, since its initializer requires a non nil controller, since without having a ListViewController we cannot present a new page. (Its important to remember that we are currently holding a weak reference to the **controller: ListViewController**) in our FeedViewAdapter, because we do not want to have a retain cycle, so adding these changes, our final **display(_ viewModel:)** method looks like: 
+
+```swift
+func display(_ viewModel: Paginated<FeedImage>) {
+    guard let controller = controller else { return }
+    
+    var currentFeed = self.currentFeed
+    let feed: [CellController] = viewModel.items.map { model in
+        if let controller = currentFeed[model] {
+            return controller
+        }
+        
+        let adapter = ImageDataPresentationAdapter(loader: { [imageLoader] in
+            imageLoader(model.url)
+        })
+        
+        let view = FeedImageCellController(
+            viewModel: FeedImagePresenter.map(model),
+            delegate: adapter,
+            selection: { [selection] in
+                selection(model)
+            })
+        
+        adapter.presenter = LoadResourcePresenter(
+            resourceView: WeakRefVirtualProxy(view),
+            loadingView: WeakRefVirtualProxy(view),
+            errorView: WeakRefVirtualProxy(view),
+            mapper: UIImage.tryMake)
+        
+        let controller = CellController(id: model, view)
+        currentFeed[model] = controller
+        return controller
+    }
+    
+    guard let loadMorePublisher = viewModel.loadMorePublisher else {
+        controller.display(feed)
+        return
+    }
+    
+    let loadMoreAdapter = LoadMorePresentationAdapter(loader: loadMorePublisher)
+    let loadMore = LoadMoreCellController(callback: loadMoreAdapter.loadResource)
+    
+    loadMoreAdapter.presenter = LoadResourcePresenter(
+        resourceView: FeedViewAdapter(
+            currentFeed: currentFeed,
+            controller: controller,
+            imageLoader: imageLoader,
+            selection: selection
+        ),
+        loadingView: WeakRefVirtualProxy(loadMore),
+        errorView: WeakRefVirtualProxy(loadMore))
+    
+    let loadMoreSection = [CellController(id: UUID(), loadMore)]
+    
+    controller.display(feed, loadMoreSection)
+}
+```
+
+
+
+We run the tests again and we see that they pass: the lookup table has solved our problem. This way we avoid reallocating already existing instances since our instances are somewhat expensive, and also, if we reallocate an existing already allocated instance we are losing our **isLoading** state which we need to avoid unnecesary network fetches.
 
 
 
