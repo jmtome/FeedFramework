@@ -3654,13 +3654,85 @@ After we are done, we are going to remove the new implementations of the async-s
 
 
 
+#### Migrating the deprecated APIs to the new API's
 
+Now we are going to follow the compiler to see where the warnings regarding our deprecated methods are and migrate to the new sync API's.
 
+First we will migrate the **LocalFeedImageDataLoader: FeedImageDataCache** extension that conforms to the **<FeedImageDataCache>** protocol API for saving, the current code is:
 
+```swift
+extension LocalFeedImageDataLoader: FeedImageDataCache {
+    public typealias SaveResult = FeedImageDataCache.Result
+    
+    public enum SaveError: Error {
+        case failed
+    }
+    
+    public func save(_ data: Data, for url: URL, completion: @escaping (SaveResult) -> Void) {
+        store.insert(data, for: url) { [weak self] result in
+            guard self != nil else { return }
+            completion(result.mapError { _ in SaveError.failed })
+        }
+    }
+}
+```
 
+Where the compiler tells us that **insert** is deprecated.
 
+For this migration, we will start with a test in the **CacheFeedImageUseCaseTests**. Inspecting the test helpers such as **expect**, we see how we depend on asynchrony, using the expectations, we end up having to wait, but we can simplify that logic now with the async API's.
 
+What we are going to do is convert the **FeedImageDataStoreSpy**'s async methods into sync. At the moment what our spies' methods are doing is capturing the completion blocks so that we can call them in the future, but if the spy's implementation were synchronous, we wouldnt need to capture, we would need to stub the result upfront, to return something, either error or void, for which we create a new **private var insertionResult: Result<Void, Error>?** property that we will use for stubbing:
 
+```swift
+  private var insertionResult: Result<Void, Error>?
+    
+    func insert(_ data: Data, for url: URL) throws {
+        receivedMessages.append(.insert(data: data, for: url))
+        try insertionResult?.get()
+    }
+
+//We also modify the helpers
+func completeInsertion(with error: Error) {
+    insertionResult = .failure(error)
+}
+    
+func completeInsertionSuccessfully() {
+    insertionResult = .success(())
+}
+```
+
+its important to understand that in the sync API's we need to stub the value before the method is invoked before we need to return a value immediately, synchronously.
+
+This can be seen clearly in our **expect** method helper:
+
+![image-20230725164306120](/Users/macbook/Library/Application Support/typora-user-images/image-20230725164306120.png)
+
+the **action** closure, which in the previous image is shown to be executed at the end, in the new synch API's it needs to be executed at the begginning:
+
+![image-20230725164343842](/Users/macbook/Library/Application Support/typora-user-images/image-20230725164343842.png)
+
+because the Stub NEEDS to be configured before executing the sync method. As expected, these changes ake our tests fail, which is the cue to go fix them in the **LocalFeedImageDataLoader: FeedImageDataCache** extension. So in our original async code we had:
+
+``` swift
+public func save(_ data: Data, for url: URL, completion: @escaping (SaveResult) -> Void) {
+    store.insert(data, for: url) { [weak self] result in
+        guard self != nil else { return }
+        completion(result.mapError { _ in SaveError.failed })
+    }
+}	
+```
+
+Where our async api was waiting for the completion to then call the completion block. We can now do that synchronously by wrapping the result and calling the synchronous API without the completion block:
+
+```swift
+public func save(_ data: Data, for url: URL, completion: @escaping (SaveResult) -> Void) {
+        completion(SaveResult {
+            try store.insert(data, for: url)
+        }.mapError {_ in SaveError.failed })
+}
+```
+
+This will be executed synchronously. Now the tests run without error, except for a deallocation test that has no reason to exist anymore since we are not working async anymore, so we delete it.
 
 
 
