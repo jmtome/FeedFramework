@@ -3658,6 +3658,8 @@ After we are done, we are going to remove the new implementations of the async-s
 
 Now we are going to follow the compiler to see where the warnings regarding our deprecated methods are and migrate to the new sync API's.
 
+##### Save Images Synchronously
+
 First we will migrate the **LocalFeedImageDataLoader: FeedImageDataCache** extension that conforms to the **<FeedImageDataCache>** protocol API for saving, the current code is:
 
 ```swift
@@ -3736,9 +3738,70 @@ This will be executed synchronously. Now the tests run without error, except for
 
 
 
+##### Load images Syncronously
+
+Now we are going to attend to the warning regarding the loading of images for the **retrieve** method. 
+
+In the same fashion as in the previous case, we will modify our Spy's result switching from a completion array, to a stub, returning either optional data or error.
+
+```swift
+private var retrievalResult: Result<Data?, Error>?
 
 
+func retrieve(dataForURL url: URL) throws -> Data? {
+    receivedMessages.append(.retrieve(dataFor: url))
+    return try retrievalResult?.get()
+}
 
+func completeRetrieval(with error: Error) {
+    retrievalResult = .failure(error)
+}
+
+func completeRetrieval(with data: Data?) {
+    retrievalResult = .success(data)
+}
+```
+
+Same as before, we use Stubs in our Spy, and now all our spy methods are synchronous. The same procedure we applied to the **expect** helper from **save** applies here, we need to run the **action** closure at the begginning of the **expect**  helper method instead of at the end. Same as with the **save** method, the tests regarding asynchrony and the correct results expected from deallocation can be removed since we are now working with synchronous tasks. (Regarding the cancel task test: you cant cancel a synchronous process because it happens instantly, and all the cancelling regarding the asynchronous tasks are handled in the Composition Root).
+
+We run the test and they fail, which leads us to modifying our **load** code in the **LocalFeedImageDataLoader: FeedImageDataLoader** extension, in the method **loadImageData(from url:)** 
+
+Previous code: 
+
+```swift
+public func loadImageData(from url: URL, completion: @escaping (LoadResult) -> Void) -> FeedImageDataLoaderTask {
+    let task = LoadImageDataTask(completion)
+    store.retrieve(dataForURL: url) { [weak self] result in
+        guard self != nil else { return }
+        
+        task.complete(with: result
+            .mapError { _ in LoadError.failed }
+            .flatMap { data in
+                data.map { .success($0) } ?? .failure(LoadError.notFound)
+            })
+    }
+    return task
+}
+```
+
+```swift
+public func loadImageData(from url: URL, completion: @escaping (LoadResult) -> Void) -> FeedImageDataLoaderTask {
+    let task = LoadImageDataTask(completion)
+   
+    task.complete(
+        with: Swift.Result {
+        try store.retrieve(dataForURL: url)
+        }
+        .mapError { _ in LoadError.failed }
+        .flatMap { data in
+            data.map { .success($0) } ?? .failure(LoadError.notFound)
+        })
+    
+    return task
+}
+```
+
+Now the tests pass, and we have removed one level of indentation since we dont have completion blocks.
 
 
 
