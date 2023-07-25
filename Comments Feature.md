@@ -3527,13 +3527,130 @@ We run the tests again and we see that they pass: the lookup table has solved ou
 
 
 
+### Quick Recap Live Session #001:
+
+It was shown how to decouple modules from infrastructure details, for example, we refactor the FeedAPI Module and we decoupled it from the HTTPClient as we can see in the following image, no arrows are going from the FeeedAPI Module to the Client.
+
+![image-20230724161314591](/Users/macbook/Library/Application Support/typora-user-images/image-20230724161314591.png)
 
 
 
+The Client lives in its own Infrastructure Module, and we compose the FeedAPI Logic with the infrastructure in the Composition Root (SceneDelegate). So, our FeedAPI Module doesn't know about the Infrastructure, and the infrastructure doesn't know about the FeedAPI Module.
+
+```swift
+  private func makeRemoteFeedLoader(after: FeedImage? = nil) -> AnyPublisher<[FeedImage], Error> {
+        let url = FeedEndpoint.get(after: after).url(baseURL: baseURL)
+        
+        return httpClient
+            .getPublisher(url: url)
+            .tryMap(FeedItemsMapper.map)
+            .eraseToAnyPublisher()
+    }
+```
+
+They are composed as we see above, in the SceneDelegate.
 
 
 
+As a result we eliminated a lot of boilerplate code, we deleted the FeedLoader protocol which was async with the completion block, and we also made the FeedAPI Logic, the mapper, synchronous (input-output).
 
+Going from asynchronous code to synchronous code makes everything simpler, since we dont have completion blocks, closures etc. 
+
+Its important to bear in mind that the infrastructure, the HTTPClient, is still asynchronous and it makes the request and at somepoint its going to complete, and then we map that response with our mapper, which is syncrhonous, effectively decoupling the synchrony details in the infrastructure details from the FeedAPI module. 
+
+
+
+The question now is: can we make other modules synchronous aswell and move asynchrony always to the composition root? Yes, we can, we can follow the same process as followed in Live #001 to decouple the modules from asynchrony.
+
+So, the steps were:
+
+- We decouple the module from the infrastructure details
+- We make the module functions synchronous
+- Then we compose it in the infrastructure either using Decorators, Composites or Combine/RxSwift.
+
+
+
+Today we are going to show a different way of doing it, we are going to convert another async API into a sync API to decouple modules from Async details, which will simplify the development, testing and maintenance of those components. Of course we still want to mantain the same benefits of async excecution such as running network and database operations concurrently without blocking the main thread.
+
+### Migrating Async Modules to Sync
+
+For example, the **<FeedCache>** protocol, which is defined in the **Domain Module**, is asynchronous, it has a completion block. So the service abstraction, which is defined in the domain layer, is only asynchronous because of the infrastructure details. Same thing happens with the **<FeedImageDataCache>**, which is also async and has a completion block. Also the **<FeedImageDataLoader>**, it's a domain abstraction which is async with a completion block.
+
+All of these abstractions in the **domain module** are only asynchronous because the infrastructure implementation needs to be asynchronous, because we don't want to block the main thread.
+
+Same thing is happening with infrastructure abstractions,  the **<FeedStore>** aswell as the **<FeedImageDataStore>** which, along the implementation, are running async since we dont want to run the DB queries synchronously and block the clients (same as we wouldn't want to block them when making a network request), but then, we are leaking infrastructure details into the **Domain**.
+
+This is pretty common in Swift Async API's, it's common to see a bunch of Domain abstractions with either completion blocks or even RxSwift/Combine publishers, because you need to deal with asynchrony. This is not a big problem but its a leaky abstraction, and if you can eliminate the Leaky abstraction, you can make your domain simpler to develop/maintain and test.
+
+This infrastructure being async "problem", becomes a chain effect that leaks into the rest of our domains, forcing us to make every API async. We don't want to leak infrastructure details.
+
+
+
+**A solution to avoid leaking infrastructure details into everywhere is to make the infrastructure synchronous, so we don't leak these async details everywhere. And we move asynchrony into the composition root. (threading is a cross cutting concern, and we can deal with cross-cutting concerns in the composition root so we avoid coupling modules with unnecesary details).** 
+
+
+
+#### Eliminating Completion Blocks (avoiding pyramid of doom)
+
+Starting with **<FeedImageDataStore>**, we analyze the `insert` and `retrieve` methods to see how we can get rid of the completion code.
+
+We propose synchronous method signatures that are completely synchronous, but that can fail, therefore they **throw**:
+
+```swift
+	func insert(_ data: Data, for url: URL) throws
+	func retrieve(dataForURL url: URL) throws -> Data?
+```
+
+We are making these synchronous and eliminating the completion blocks we can then make every component synchronous and deal with asyncrony somewhere else (Composition Root). 
+
+Nevertheless, changing this interface will break clients, so temporarily we will add an extension with default implementations that will use the async API's that we already have, but respecting the synchronous signature. For this we will create a **DispatchGroup**, enter the group, and then inside the async API, when the closure is executed, we assign the result, and leave the group. Outside the closure, we wait for the completion async completion to finish (in that time, the client is locked in the meanwhile, which is why it becomes synchronous). Finally we try to get the result and return it.
+
+```swift
+func retrieve(dataForURL url: URL) throws -> Data? {
+    let group = DispatchGroup()
+    
+    group.enter()
+    var result: RetrievalResult!
+    retrieve(dataForURL: url, completion: {
+        result = $0
+        group.leave()
+    })
+    group.wait()
+    
+    return try result.get()
+}
+```
+
+We do the same thing for the insertion: 
+
+```swift
+func insert(_ data: Data, for url: URL) throws {
+    let group = DispatchGroup()
+    
+    group.enter()
+    var result: InsertionResult!
+    insert(data, for: url) {
+        result = $0
+        group.leave()
+    }
+    group.wait()
+    
+    return try result.get()
+}
+```
+
+So if we fail this will throw an error, and if it succeeds it will return the **Data**. 
+
+This is just a temporary implementation so that we dont break the clients. 
+
+Next step is to deprecate the original asynch API's with an **@available(*, deprecated)** statement before the protocol signatures, and also provide default empty implementations for the deprecated implementations:
+
+```swift
+func insert(_ data: Data, for url: URL, completion: @escaping (InsertionResult) -> Void) {}
+func retrieve(dataForURL url: URL, completion: @escaping (RetrievalResult) -> Void) {}
+```
+
+After we are done, we are going to remove the new implementations of the async-sync methods.
 
 
 
