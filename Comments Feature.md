@@ -3807,6 +3807,8 @@ Now the tests pass, and we have removed one level of indentation since we dont h
 
 ### Making the Domain Abstractions synchronous
 
+#### Make FeedImageDataCache sync    
+
 Now we are going to look at our domain abstractions to make them synchronous, we start with **FeedImageDataCache**  and we will go from this: 
 
 ```swift
@@ -3854,6 +3856,114 @@ So, we try to save the data, and if it fails we catch the error and throw a pers
 Now we have to fix the tests, which were still configured for the async API. Since we don't have completion closures anymore, we reduce one indentation and we have less code.
 
 Finally, we have to modify our **LocalFeedLoader** extension method **saveIgnoringResult**. 
+
+####       Make FeedImageDataLoader sync    
+
+Now we will apply the same process to make our **FeedImageDataLoader**, we want to convert it from Async, to Sync. This conversion is a bit more complex, since we have a cancel task
+
+```swift
+public protocol FeedImageDataLoaderTask {
+    func cancel()
+}
+public protocol FeedImageDataLoader {
+    typealias Result = Swift.Result<Data, Error>
+    func loadImageData(from url: URL, completion: @escaping (Result) -> Void) -> FeedImageDataLoaderTask
+}
+```
+
+But as we said before, we get this for free in the composition root, so we can get rid of it and refactor our **loadImageData** signature, which will now return just Data and if it fails it will throw, we also get rid of the result:
+
+```swift
+public protocol FeedImageDataLoader {
+    func loadImageData(from url: URL) throws -> Data
+}
+```
+
+which is the new sync API. 
+
+We follow the compiler and go fix the **LocalFeedImageDataLoader: FeedImageDataLoader** extension, for starters we dont need the **LoadResult** type alias anymore or the **LoadImageDataTask** , our **loadImageData** method goes from this:
+
+```swift
+public func loadImageData(from url: URL, completion: @escaping (LoadResult) -> Void) -> FeedImageDataLoaderTask {
+        let task = LoadImageDataTask(completion)
+       
+        task.complete(
+            with: Swift.Result {
+            try store.retrieve(dataForURL: url)
+            }
+            .mapError { _ in LoadError.failed }
+            .flatMap { data in
+                data.map { .success($0) } ?? .failure(LoadError.notFound)
+            })
+        
+        return task
+    }
+```
+
+to this:
+
+```swift
+public func loadImageData(from url: URL) throws -> Data {
+        do {
+            if let imageData = try store.retrieve(dataForURL: url) {
+                return imageData
+            }
+        } catch {
+            throw LoadError.failed
+        }
+        
+        throw LoadError.notFound
+    }
+```
+
+In the same fashion we can start modifying our tests that required expectations for tests without them, since we dont need them now. We also get rid of one level of indentation, as said before.
+
+Finally we also have to modify our CombineHelpers file, the **FeedImageDataLoader** extension, since we went Sync, the **FeedImageDataLoaderTask** doesn't exist anymore, and every publisher is cancellable by default, so we go from this: 
+
+```swift
+public extension FeedImageDataLoader {
+    typealias Publisher = AnyPublisher<Data, Error>
+    
+    func loadImageDataPublisher(from url: URL) -> Publisher {
+        var task: FeedImageDataLoaderTask?
+        
+        return Deferred {
+            Future { completion in
+                task = self.loadImageData(from: url, completion: completion)
+            }
+        }
+        .handleEvents(receiveCancel: { task?.cancel() })
+        .eraseToAnyPublisher()
+    }
+}
+```
+
+to this:
+
+```swift
+public extension FeedImageDataLoader {
+    typealias Publisher = AnyPublisher<Data, Error>
+    
+    func loadImageDataPublisher(from url: URL) -> Publisher {
+        return Deferred {
+            Future { completion in
+                completion(Result {
+                    try self.loadImageData(from: url)
+                })
+            }
+        }
+        .eraseToAnyPublisher()
+    }
+}
+```
+
+
+
+
+
+
+
+
 
 
 
