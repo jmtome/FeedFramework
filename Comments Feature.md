@@ -3961,7 +3961,13 @@ public extension FeedImageDataLoader {
 
 
 
+![image-20230726142138064](/Users/macbook/Library/Application Support/typora-user-images/image-20230726142138064.png)
 
+
+
+Now we've made both the **<FeedImageData>** Cache and the **<FeedImageDataLoader>** synchronous, and we can do the same for the **<FeedCache>** . But first we'll see to make the **<FeedImageDataStore>** synchronous.
+
+So, we go to **CoreDataFeedStore** and we see that the **perform** method provided by core data is async. So we will rename it to show that.
 
 
 
