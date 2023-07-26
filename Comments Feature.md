@@ -3805,9 +3805,55 @@ Now the tests pass, and we have removed one level of indentation since we dont h
 
 
 
+### Making the Domain Abstractions synchronous
 
+Now we are going to look at our domain abstractions to make them synchronous, we start with **FeedImageDataCache**  and we will go from this: 
 
+```swift
+public protocol FeedImageDataCache {
+    typealias Result = Swift.Result<Void, Error>
+    
+    func save(_ data: Data, for url: URL, completion: @escaping (Result) -> Void)
+}
+```
 
+To this:
+
+```swift
+public protocol FeedImageDataCache {
+    func save(_ data: Data, for url: URL) throws
+}
+```
+
+Since the API is now synchronous we do not need for completion results because it either saves or throws an error that we will later catch.
+
+We now follow the compiler and fix the errors we got with this change in the **LocalFeedImageDataLoader: FeedImageDataCache** extension. For starters we dont need the result type, since its now synchronous and we modify our **save** method from: 
+
+```swift
+public func save(_ data: Data, for url: URL, completion: @escaping (SaveResult) -> Void) {
+    completion(SaveResult {
+        try store.insert(data, for: url)
+    }.mapError {_ in SaveError.failed })
+}
+```
+
+to:
+
+```swift
+public func save(_ data: Data, for url: URL) throws {
+    do {
+        try store.insert(data, for: url)
+    } catch {
+        throw SaveError.failed
+    }
+}
+```
+
+So, we try to save the data, and if it fails we catch the error and throw a personalized error.
+
+Now we have to fix the tests, which were still configured for the async API. Since we don't have completion closures anymore, we reduce one indentation and we have less code.
+
+Finally, we have to modify our **LocalFeedLoader** extension method **saveIgnoringResult**. 
 
 
 
