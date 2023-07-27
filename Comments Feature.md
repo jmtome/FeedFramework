@@ -3967,7 +3967,118 @@ public extension FeedImageDataLoader {
 
 Now we've made both the **<FeedImageData>** Cache and the **<FeedImageDataLoader>** synchronous, and we can do the same for the **<FeedCache>** . But first we'll see to make the **<FeedImageDataStore>** synchronous.
 
-So, we go to **CoreDataFeedStore** and we see that the **perform** method provided by core data is async. So we will rename it to show that.
+So, we go to **CoreDataFeedStore** and we see that the **perform** method provided by core data is async. So we will rename it to show that to **performAsync**. 
+
+Next step is to make CoreData **<FeedImageDataStore>** implementation syncronous. For this we will need to create a sync version of it.
+
+We will start with the CoreData tests in the CoreDataFeedImageDataStoreTests. We need to modify our **expect** method and stop using expectations, since those were to test async api's and now we are working with sync apis. We will also modify the other helper methods such as **insert** in the same way. What we wont change, at least not now, is that our FeedStore still is asynchronous, so in our test code, in the **insert** helper method we will keep that.
+
+
+
+Initially the tests will pass, since in the **FeedImageDataStore** we have created our sync versions of the methods **insert** and **retrieve** which internally make use of a **DispatchGroup** to execute async code in an sync mode, making the clients wait. This will be changed in the future, but for now the tests pass.
+
+
+
+Going back to the **CoreDataFeedStore+FeedImageDataStore** we examine our **insert** and **retrieve** methods, and we see they are being used with **performAsync** method we created to work with **CoreData**. Our next goal is to create a **performSync** method that allows us to work synchronously. We will create this method below the **performAsync** method, in the **CoreDataFeedStore** .
+
+In synchronous operations, closures dont need to be escaping, since we are not holding a reference to it, it's not escaping the scope of the function, and they will execute immediately, and when it returns it doesn't hold any reference to the closure. Therefore the **action** closure of our **performSync** wont be escaping.
+
+So, a sync API needs to return the result immediately, not in the future, so we need to return a result here, but what should we return? Somes we return **Data?** for the retrieve and sometimes we return **Void**, meaning the result changes depending on the operation.
+
+So we can create a generic result type and we can then returl the generic result. And also our closure returning **action** can also return a Result<R, Error>, and if it fails it should throw an error:
+
+```swift
+func performSync<R>(_ action: (NSManagedObjectContext) -> Result<R, Error>) throws -> R
+```
+
+![image-20230727142316076](/Users/macbook/Library/Application Support/typora-user-images/image-20230727142316076.png)
+
+We mentioned earlier that we do not need an escaping closure, since we are executing the task synchronously, but we can see that CoreData's **perform** method 
+
+![image-20230727142402299](/Users/macbook/Library/Application Support/typora-user-images/image-20230727142402299.png)
+
+So what we can do is use the **performAndWait** method, which is synchronous and will wait until the task is completed to continue
+
+![image-20230727142443159](/Users/macbook/Library/Application Support/typora-user-images/image-20230727142443159.png)
+
+finally our **performSync** method looks like:
+
+```swift
+ func performSync<R>(_ action: (NSManagedObjectContext) -> Result<R, Error>) throws -> R {
+   	let context = self.context
+   	var result: Result<R, Error>!
+   	context.performAndWait {
+   	    result = action(context)
+   	}
+   	return try result.get()
+}
+```
+
+We either got a result or it will throw an error.
+
+Now going back to the API's in the **CoreDataFeedStore: FeedImageDataStore** extension, we can perform our **insert** and **retrieve** using the new sync API's, by using the **performSync** method:
+
+Going from this:
+
+```swift
+extension CoreDataFeedStore: FeedImageDataStore {
+    public func insert(_ data: Data, for url: URL, completion: @escaping (FeedImageDataStore.InsertionResult) -> Void) {
+        performAsync { context in
+            completion(Result {
+                try ManagedFeedImage.first(with: url, in: context)
+                    .map { $0.data = data }
+                    .map(context.save)
+            })
+        }
+    }
+
+    public func retrieve(dataForURL url: URL, completion: @escaping (FeedImageDataStore.RetrievalResult) -> Void) {
+        performAsync { context in
+            completion(Result {
+                try ManagedFeedImage.data(with: url, in: context)
+            })
+        }
+    }
+}
+```
+
+
+
+To this:
+
+```swift
+extension CoreDataFeedStore: FeedImageDataStore {
+    public func insert(_ data: Data, for url: URL) throws {
+        try performSync { context in
+            Result {
+                try ManagedFeedImage.first(with: url, in: context)
+                    .map { $0.data = data }
+                    .map(context.save)
+            }
+        }
+    }
+    
+    public func retrieve(dataForURL url: URL) throws -> Data? {
+        try performSync { context in
+            Result {
+                try ManagedFeedImage.data(with: url, in: context)
+            }
+        }
+    }
+}
+```
+
+We see how we have eliminated the completion blocks.
+
+
+
+
+
+
+
+
+
+
 
 
 
