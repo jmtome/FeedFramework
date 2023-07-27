@@ -4072,7 +4072,22 @@ We see how we have eliminated the completion blocks.
 
 
 
+#### Removing the deprecated async API's
 
+So, now we have everything we need regarding the new sync API's, and we can therefore remove the async, deprecated api's. We are going to remove the RetrievalResult and the InsertionResult aswell as the async methods of **retrieve** and **insert** , we will also remove the helper extension, and our new **FeedImageDataStore** looks like:
+
+```swift
+public protocol FeedImageDataStore {
+    func insert(_ data: Data, for url: URL) throws
+    func retrieve(dataForURL url: URL) throws -> Data?
+}
+```
+
+
+
+Some changes must be done to the CoreDateFeedImageDataStoreTests too, since we removed the result types aswell. We will be getting rid of the test_sideEffects_runSerially, since all the sync processes run serially.
+
+We must also modify our **NullStore: FeedImageDataStore** extension that provides the default **insert** and **retrieve** methods, to reflect the changes we made. We must modify too, the **InMemoryFeedStore: FeedImageDataStore** that also was making use of the async apis, and change them to work with the sync apis.
 
 
 
