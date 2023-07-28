@@ -4091,6 +4091,313 @@ We must also modify our **NullStore: FeedImageDataStore** extension that provide
 
 
 
+So, all the API's are now synchronous: FeedImageDataCache, FeedImageDataLoader, etc. So the abstractions are syncronous, which makes the implementations much simpler as well and we are not leaking the asynchrony details everywhere.
+
+
+
+If we run the app again, and add a breakpoint on our newly created method **performSync**, we can see that its being executed in the Main Thread, and, that the method **performAndWait** is indeed blocking the Main Thread/queue, until the CoreData query finishes. This can make the UI unresponsive for a while depending on how long it takes to execute the query and we dont want that.
+
+How can we maintain te benefits of an async API with a sync api? -> **By moving asynchrony to the Composition Root** . Where we could either use a Decorator, or in our case, Combine's **subscribe(on:...)** method.
+
+We will do that next.
+
+### Inject asynchrony in the Composition Root so as not to block the Main Queue
+
+So now, we've made all the following implementations synchronous:
+
+![image-20230727164804706](/Users/macbook/Library/Application Support/typora-user-images/image-20230727164804706.png)
+
+But we are blocking the Main Queue, as we pointed out earlier, by using the **performAndWait** method from CoreData's framework.
+
+Going to our Composition Root (SceneDelegate), and analyzing our **makeLocalImageLoaderWithRemoteFallback(url: URL) -> FeedImageDataLoader.Publisher** method:
+
+```swift
+private func makeLocalImageLoaderWithRemoteFallback(url: URL) -> FeedImageDataLoader.Publisher {
+    let localImageLoader = LocalFeedImageDataLoader(store: store)
+    
+    return localImageLoader
+        .loadImageDataPublisher(from: url)
+        .logCacheMisses(url: url, logger: logger)
+        .fallback(to: { [httpClient, logger] in
+            httpClient
+                .getPublisher(url: url)
+                .logError(url: url, logger: logger)
+                .logElapsedTime(url: url, logger: logger)
+                .tryMap(FeedImageDataMapper.map)
+                .caching(to: localImageLoader, using: url)
+        })
+}
+```
+
+We can see that first we try to load from the cache, if we dont have anything there we try an API request, so the UI requests for the image in the main queue and we were dispatching it in the background queue, we need to to the same here. This can be done with a Decorator or using Combine/RxSwift using the **subscribe(on: Scheduler)**  and subscribing to **DispatchQueue.global()** which implements the scheduler protocol.
+
+```swift
+private func makeLocalImageLoaderWithRemoteFallback(url: URL) -> FeedImageDataLoader.Publisher {
+    let localImageLoader = LocalFeedImageDataLoader(store: store)
+    
+    return localImageLoader
+        .loadImageDataPublisher(from: url)
+        .logCacheMisses(url: url, logger: logger)
+        .fallback(to: { [httpClient, logger] in
+            httpClient
+                .getPublisher(url: url)
+                .logError(url: url, logger: logger)
+                .logElapsedTime(url: url, logger: logger)
+                .tryMap(FeedImageDataMapper.map)
+                .caching(to: localImageLoader, using: url)
+        })
+        .subscribe(on: DispatchQueue.global())
+        .eraseToAnyPublisher()
+}
+```
+
+Now if we run the app with the same checkpoint in the **performSync<R>** method in our CoreDataFeedStore, we can see that we are now indeed in a background thread and not in the main thread:
+
+![image-20230727170725236](/Users/macbook/Library/Application Support/typora-user-images/image-20230727170725236.png)
+
+so, the subscribe(on: ) publisher, allows us to execute work in any provided scheduler, in this case we are using the **DispatchQueue.global()** which is a concurrente queue. Everytime we jump into the breakpoint we might see we are on a different thread, this is normal, this is because the global queue will choose whichever queue/thread is idle and run the operation concurrently. So if your starting implementation is thread safe, the global dispatch queue will do just fine, but if its not thread safe you can create your own background queue to run the operations.
+
+
+
+#### Creating the Scheduler
+
+So, we'll start by creating a scheduler in our Composition Root:
+
+```swift
+private lazy var scheduler = DispatchQueue(label: "com.jmt.wot.FeedApp.FeedApp.infra.queue", qos: .userInitiated)	
+
+```
+
+so now, we can use this scheduler, which is a background queue but serial, because, by default, DispatchQueue is serial.
+
+
+
+We run again the app, and we can see that we are running in our infra queue, which is serial,
+
+![image-20230727171704613](/Users/macbook/Library/Application Support/typora-user-images/image-20230727171704613.png)
+
+so we dont block the main thread, because  we subscribe the upstream of operations with our own scheduler, so we are controlling all the threading from the composition root aswell.
+
+So, if our components are not thread-safe, we should always execute our operations in a serial scheduler/queue. Therefore, where we cache the feed to the database, we also need to perform it in the scheduler, using the same scheduler (**Every operation in the store should be excecuted in the same serial scheduler if its not thread safe**)
+
+```swift
+private func makeLocalImageLoaderWithRemoteFallback(url: URL) -> FeedImageDataLoader.Publisher {
+    let localImageLoader = LocalFeedImageDataLoader(store: store)
+    
+    return localImageLoader
+        .loadImageDataPublisher(from: url)
+        .logCacheMisses(url: url, logger: logger)
+        .fallback(to: { [httpClient, logger, scheduler] in
+            httpClient
+                .getPublisher(url: url)
+                .logError(url: url, logger: logger)
+                .logElapsedTime(url: url, logger: logger)
+                .tryMap(FeedImageDataMapper.map)
+                .caching(to: localImageLoader, using: url)
+                .subscribe(on: scheduler)
+                .eraseToAnyPublisher()
+        })
+        .subscribe(on: scheduler)
+        .eraseToAnyPublisher()
+}
+```
+
+Its not necessary to make the components thread safe if you control threading as a cross-cutting concern in  the composition root, this way the implementations can be much simpler, **but since CoreData is thread-safe already (if we are using the `perform` API's (either `perform`(async) or `performAndWait`(sync))) , we can make a concurrent queue** :
+
+```swift
+private lazy var scheduler = DispatchQueue(label: "com.jmt.wot.FeedApp.FeedApp.infra.queue",
+                                           qos: .userInitiated,
+                                           attributes: .concurrent)
+```
+
+we run again, and we can clearly see that we are running concurrently in our infra queue
+
+![image-20230727173521356](/Users/macbook/Library/Application Support/typora-user-images/image-20230727173521356.png)
+
+which concurrently will choose whatever thread is idle to run the operations.
+
+So, the **subscribe(on:)** publisher has a counterpart, the **receive(on:)**, which we used already to dispatch to the main queue. So what we will do next is **receive(on:)** the main queue.
+
+
+
+**Subscribe(on:)**, affects the upstream messages, while **receive(on:)** the downstream messages:
+
+So when we use the **subscribe(on: upstreamScheduler)** publisher, the upstream will be executed with that **upstreamScheduler** (arrow up), and with the **receive(on: downstreamScheduler)** publisher, the downstream (arrow down) will be affected by that **downstreamScheduler** 
+
+![image-20230727174247415](/Users/macbook/Library/Application Support/typora-user-images/image-20230727174247415.png)
+
+So all the operations pointed by the **up arrow** will be excecuted in the **scheduler** (background concurrence scheduler) but the results pointed by the **down arrow** will be dispatched to the **DispatchQueue.main** scheduler (main queue scheduler).
+
+This way, we can subscribe on the background scheduler, with everything upwards from the subscribe(on:) will be excecuted in our concurrent **scheduler** and the results will be passed down and received in the **DispatchQueue.main** scheduler. 
+
+This was shown here for explanation purposes, but in this particular case we do not need the **receive(on:)** method here, because the **LoadResourcePresentationAdapter** already does it, it already dispatches on the main queue before updating the UI, with the **dispatchOnMainQueue() -> AnyPublisher<Output, Failure>** that we created in the **CombineHelpers** , that dispatches using the **receive(on:)** that affects the downstream. 
+
+![image-20230727174928691](/Users/macbook/Library/Application Support/typora-user-images/image-20230727174928691.png)
+
+We can see that the **dispatchOnMainQueue()** will affect all of the downstream of events that will all be on the main queue, regardless of what the upstream did. This is how we can control threading in the Composition Root. (We could use Decorators but using Combine we get this for free as an universal abstraction)
+
+**So, we can decouple all modules from the infra details, from async details so they are easier to develop mantain and test.** 
+
+
+
+We run the App and it works. But there is a problem, the acceptance tests expect the code to run synchronously with the In-memory stub, but since we are dispatching this work in a background queue the acceptance test will fail because they dont wait for operations to finish, specifically the tests that were testing the rendered images with the data acquired from the requests vs the dummy image data. 
+
+We could also make the test wait, and thus making it slow, there exist some third party test frameworks able to wait for operations to finish asynchronously. It works but it adds friction/delay, makes the test slower. 
+
+Another way we could deal with that is to inject the scheduler, instead of always using the **concurrent** **scheduler** in our SceneDelegate, we can replace with an immediate scheduler during tests, so we use the **background** **scheduler** in production and during tests we use an **immediate** **scheduler**. So the idea is to inject a **scheduler** into the **SceneDelegate**, like we inject the **HttpClient** infrastructure details, because asynchrony is also an infrastructure detail!.
+
+So, we pass an scheduler into the SceneDelegate init, that conforms to the **<Scheduler>** protocol
+
+![image-20230727191838301](/Users/macbook/Library/Application Support/typora-user-images/image-20230727191838301.png)
+
+ the problem is that the protocol defines two associated types:
+
+![image-20230727191709334](/Users/macbook/Library/Application Support/typora-user-images/image-20230727191709334.png)
+
+so we cannot pass it as an argument directly, or even hold it as a property, because the compiler needs to know the associated types.
+
+![image-20230727191747229](/Users/macbook/Library/Application Support/typora-user-images/image-20230727191747229.png)
+
+So, a protocol with associated types is an incomplete protocol, you cannot use it directly, you cannot specify the associated types of a protocol in a property.
+
+So, we could define the associated types into the **init** by using generics, but we cant hold a reference to it in a property. We could make the SceneDelegate define the associated types for the Scheduler, the problem is that SceneDelegate cannot have associated types because it is an NSObject Class and it wouldn't be instantiated properly by UIKit.
+
+So, we cannot pass the scheduler as a protocol, but we can pass the concrete protocol implementations like a **DispatchQueue**  as a scheduler (because it implements Scheduler), but by passing the concrete DispatchQueue scheduler, we are coupling the client with the DispatchQueue Scheduler only, but the immediate scheduler we created earlier, is not a DispatchQueue, so because we are coupled with DispatchQueue in this case, we cannot pass another type that is also a Scheduler. So we would like to pass AnyScheduler and we cannot do that with a protocol. 
+
+This problem is similar to the Publisher protocol, which has associated types, but we cannot pass publishers around like protocols due to the associated types, but we can pass concrete implementations of the protocol like the Publishers.Map<T> , because we can define the generic types with the concrete type, but again, by passing the map publisher we couple clients with the map publisher. What if we want to perform extra mappings like tryMap or subscribe or so on?.
+
+So the solution to this problem is **Type Erasure**. For example to decouple the clients from these concrete publishers Apple provides us with the **AnyPublisher** type erasure
+
+![image-20230727192837604](/Users/macbook/Library/Application Support/typora-user-images/image-20230727192837604.png)
+
+so here we create a chain of publishers but then we erase that chain, the types, with the AnyPublisher type erasure, so we can decouple the clients from the concrete types and still hold it passed as a parameter and hold it as a property.
+
+
+
+#### Implementing an AnyScheduler Type Erasure
+
+However, for some reason Apple doesnt provide us with **AnyScheduler** , which makes it very hard to pass schedulers as parameters or decouple the clients from concrete schedulers. But we can create our own **AnyScheduler** type erasure. To do this, lets do it following the same idea as in Apple's implementation of **AnyPublisher** :
+
+![image-20230727193847847](/Users/macbook/Library/Application Support/typora-user-images/image-20230727193847847.png)
+
+So in AnyPublisher, it defines the generic associated types, Output, Failure that matches the associated types in the protocol, and the AnyPublisher also implements the Publisher protocol, because the AnyPublisher will wrap a Publisher and AnyPublisher is also a Publisher thats why you can pass it around and chain it with other publishers
+
+![image-20230727194016151](/Users/macbook/Library/Application Support/typora-user-images/image-20230727194016151.png)
+
+So, we will follow the same idea here, we will start by literally copying and pasting the AnyPublisher type erasure from apple's docs and start modifying it.
+
+The idea is that we are going to wrap any scheduler provided in the init and it will erase its type behind the AnyScheduler, but internally it will delegate messages to the provided scheduler. This pattern is very similar to the decorator pattern.
+
+So one by one we are going to add all the properties required by the **<Scheduler>** protocol. We have a problem, though that is that we cannot hold any references to the Scheduler passed in the init, since the compiler doesnt know about its type, but we can delegate those messages using closures. For example to delegate the **now** **SchedulerTimeType**, we would do it like this:
+
+![image-20230727210812862](/Users/macbook/Library/Application Support/typora-user-images/image-20230727210812862.png)
+
+This is a challenge with strongly typed languages, you have to satisfy the compiler, and if the compiler doesnt understand the types you need to come up with these solutions. 
+
+Doing the same logic for all the required properties we have:
+
+```swift
+struct AnyScheduler<SchedulerTimeType: Strideable, SchedulerOptions>: Scheduler where SchedulerTimeType.Stride: SchedulerTimeIntervalConvertible {
+    private let _now: () -> SchedulerTimeType
+    private let _minimumTolerance: () -> SchedulerTimeType.Stride
+    private let _schedule: (SchedulerOptions?, @escaping () -> Void) -> Void
+    private let _scheduleAfter: (SchedulerTimeType, SchedulerTimeType.Stride, SchedulerOptions?, @escaping () -> Void) -> Void
+    private let _scheduleAfterInterval: (SchedulerTimeType, SchedulerTimeType.Stride, SchedulerTimeType.Stride, SchedulerOptions?, @escaping () -> Void) -> Cancellable
+
+    init<S>(_ scheduler: S) where SchedulerTimeType == S.SchedulerTimeType, SchedulerOptions == S.SchedulerOptions, S: Scheduler {
+        _now = { scheduler.now }
+        _minimumTolerance = { scheduler.minimumTolerance }
+        _schedule = scheduler.schedule(options:_:)
+        _scheduleAfter = scheduler.schedule(after:tolerance:options:_:)
+        _scheduleAfterInterval = scheduler.schedule(after:interval:tolerance:options:_:)
+    }
+
+    var now: SchedulerTimeType { _now() }
+
+    var minimumTolerance: SchedulerTimeType.Stride { _minimumTolerance() }
+
+    func schedule(options: SchedulerOptions?, _ action: @escaping () -> Void) {
+        _schedule(options, action)
+    }
+
+    func schedule(after date: SchedulerTimeType, tolerance: SchedulerTimeType.Stride, options: SchedulerOptions?, _ action: @escaping () -> Void) {
+        _scheduleAfter(date, tolerance, options, action)
+    }
+
+    func schedule(after date: SchedulerTimeType, interval: SchedulerTimeType.Stride, tolerance: SchedulerTimeType.Stride, options: SchedulerOptions?, _ action: @escaping () -> Void) -> Cancellable {
+        _scheduleAfterInterval(date, interval, tolerance, options, action)
+    }
+}
+```
+
+
+
+In the same way as we eraseToAnyPublisher, when we use type Erasure for AnyPublisher, we are going to create an API to be able to eraseToAnyScheduler, when we use type erasure for AnyScheduler, which will return an AnyScheduler, but mantaining the generic types.
+
+```swift
+extension Scheduler {
+    func eraseToAnyScheduler() -> AnyScheduler<SchedulerTimeType, SchedulerOptions> {
+        AnyScheduler(self)
+    }
+}
+```
+
+Which basically is wrapping the scheduler into an AnyScheduler.
+
+So now we can erase our scheduler in the Composition Root:
+
+```swift
+	private lazy var scheduler: AnyDispatchQueueScheduler = DispatchQueue(
+		label: "com.jmt.wot.FeedApp.FeedApp.infra.queue",
+		qos: .userInitiated,
+		attributes: .concurrent
+	).eraseToAnyScheduler()
+```
+
+So that its type is now **AnyScheduler<DispatchQueue.SchedulerTimeType, DispatchQueue.SchedulerOptions>**
+
+which is an AnyScheduler with the DispatchQueue associated types (since the type was originally a DispatchQueue object).
+
+It also happens that our **ImmediateWhenOnMainQueueScheduler: Scheduler** uses the same types:
+
+![image-20230727214029440](/Users/macbook/Library/Application Support/typora-user-images/image-20230727214029440.png)
+
+thus, we can inject now a scheduler into the Composition Root's init, and override it during tests:
+
+```swift
+convenience init(httpClient: HTTPClient, store: FeedStore & FeedImageDataStore, scheduler: AnyDispatchQueueScheduler) {
+        self.init()
+        self.httpClient = httpClient
+        self.store = store
+        self.scheduler = scheduler
+    }
+```
+
+Where the **AnyDispatchQueueScheduler** is a typealias we made to simplify the reading
+
+```swift
+typealias AnyDispatchQueueScheduler = AnyScheduler<DispatchQueue.SchedulerTimeType, DispatchQueue.SchedulerOptions>
+
+```
+
+And since as we noted earlier, 
+
+```swift
+extension AnyDispatchQueueScheduler {
+    static var immediateOnMainQueue: Self {
+        DispatchQueue.immediateWhenOnMainQueueScheduler.eraseToAnyScheduler()
+    }
+}
+```
+
+It also happens that our **ImmediateWhenOnMainQueueScheduler: Scheduler** uses the same types, therefore we create an extension to **AnyDispatchQueueScheduler** typealias that provides a static property that provides us with our **immediateOnMainQueue**  erased to any scheduler. This immediate scheduler is the one we will provide during tests.
+
+
+
+All our tests are running.
+
+
+
 
 
 
