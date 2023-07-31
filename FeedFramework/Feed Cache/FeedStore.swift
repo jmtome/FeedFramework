@@ -20,7 +20,10 @@ public typealias CachedFeed = (feed: [LocalFeedImage], timestamp: Date)
 
 //Here the side effects overlap, when you delete a cache you affect the insert and when you insert you affect the delete and the retrieve is affected by both.
 public protocol FeedStore {
-
+    func deleteCachedFeed() throws
+    func insert(_ feed: [LocalFeedImage], timestamp: Date) throws
+    func retrieve() throws -> CachedFeed?
+    
     typealias DeletionResult = Result<Void, Error>
     typealias DeletionCompletion = (DeletionResult) -> Void
     
@@ -29,41 +32,55 @@ public protocol FeedStore {
     
     typealias RetrievalResult = Result<CachedFeed?, Error>
     typealias RetrievalCompletion = (RetrievalResult) -> Void
-
-    /// The completion handler can be invoked in any thread.
-    /// Clients are responsible for dispatching to appropriate threads, if needed.
+    
+    @available(*, deprecated)
     func deleteCachedFeed(completion: @escaping DeletionCompletion)
     
-    /// The completion handler can be invoked in any thread.
-    /// Clients are responsible for dispatching to appropriate threads, if needed.
+    @available(*, deprecated)
     func insert(_ feed: [LocalFeedImage], timestamp: Date, completion: @escaping InsertionCompletion)
     
-    /// The completion handler can be invoked in any thread.
-    /// Clients are responsible for dispatching to appropriate threads, if needed.
+    @available(*, deprecated)
     func retrieve(completion: @escaping RetrievalCompletion)
 }
 
-
-//MARK: - Expectations/Especifications
-/*
- - Retrieve
-    - Empty Cache returns empty
-    - Empty Cache twice returns empty (no-side-effects)
-    - Non-Empty cache returns data
-    - Non-Empty cache twice returns same data (no-side-effects)
-    - Error returns error (if applicable, e.g., invalid data)
-    - Error twice returns same error
- 
- - Insert
-    - To empty cache stores data
-    - To non-empty cache overrides previous data with new data
-    - Error (if applicable, e.g, no write permission/ no space)
- 
- - Delete
-    - Empty cache does nothing (cache stays empty and it does not fail)
-    - Non-empty cache leaves cache empty
-    - Error (if applicable, e.g., no delete permission)
- 
- - Side-effects must run serially to avoid race-conditions
- 
- */
+public extension FeedStore {
+    func deleteCachedFeed() throws {
+        let group = DispatchGroup()
+        group.enter()
+        var result: DeletionResult!
+        deleteCachedFeed {
+            result = $0
+            group.leave()
+        }
+        group.wait()
+        return try result.get()
+    }
+    
+    func insert(_ feed: [LocalFeedImage], timestamp: Date) throws {
+        let group = DispatchGroup()
+        group.enter()
+        var result: InsertionResult!
+        insert(feed, timestamp: timestamp) {
+            result = $0
+            group.leave()
+        }
+        group.wait()
+        return try result.get()
+    }
+    
+    func retrieve() throws -> CachedFeed? {
+        let group = DispatchGroup()
+        group.enter()
+        var result: RetrievalResult!
+        retrieve {
+            result = $0
+            group.leave()
+        }
+        group.wait()
+        return try result.get()
+    }
+    
+    func deleteCachedFeed(completion: @escaping DeletionCompletion) {}
+    func insert(_ feed: [LocalFeedImage], timestamp: Date, completion: @escaping InsertionCompletion) {}
+    func retrieve(completion: @escaping RetrievalCompletion) {}
+}

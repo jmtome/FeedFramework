@@ -4398,6 +4398,101 @@ All our tests are running.
 
 
 
+The next step is to make the rest of our async API abstractions synchronous like the **<FeedCache>** and the **<FeedStore>** .
+
+
+
+**We dont need to make all our API's synchronous but it helps that they don't leak implementations that way, and we can always compose, in our Composition Root. It also helps that with less completion blocks it means we have to capture self much less avoiding potential memory retention cycles and arrow code.**
+
+
+
+### Synchronous FeedStore and FeedCache
+
+Applying the same logic that we applied for the previous API abstractions, we are going to make both FeedStore and FeedCache API's synchronous.
+
+Same as before, the first thing we will do is add the desired synchronous API methods to our **<FeedStore>** abstraction and at the same time deprecate the old asynchronous API methods. 
+
+The next step is to add default implementations in our new Sync API's that use the pre-existing async apis, in the meanwhile of our migration, aswell as default empty async implementations of our old async apis.
+
+```swift
+public protocol FeedStore {
+    func deleteCachedFeed() throws
+    func insert(_ feed: [LocalFeedImage], timestamp: Date) throws
+    func retrieve() throws -> CachedFeed?
+
+		...
+  	...
+  	...
+  
+    @available(*, deprecated)
+    func deleteCachedFeed(completion: @escaping DeletionCompletion)
+    
+    @available(*, deprecated)
+    func insert(_ feed: [LocalFeedImage], timestamp: Date, completion: @escaping InsertionCompletion)
+    
+    @available(*, deprecated)
+    func retrieve(completion: @escaping RetrievalCompletion)
+}
+```
+
+
+
+```swift
+public extension FeedStore {
+    func deleteCachedFeed() throws {
+        let group = DispatchGroup()
+        group.enter()
+        var result: DeletionResult!
+        deleteCachedFeed {
+            result = $0
+            group.leave()
+        }
+        group.wait()
+        return try result.get()
+    }
+    
+    func insert(_ feed: [LocalFeedImage], timestamp: Date) throws {
+        let group = DispatchGroup()
+        group.enter()
+        var result: InsertionResult!
+        insert(feed, timestamp: timestamp) {
+            result = $0
+            group.leave()
+        }
+        group.wait()
+        return try result.get()
+    }
+    
+    func retrieve() throws -> CachedFeed? {
+        let group = DispatchGroup()
+        group.enter()
+        var result: RetrievalResult!
+        retrieve {
+            result = $0
+            group.leave()
+        }
+        group.wait()
+        return try result.get()
+    }
+    
+    func deleteCachedFeed(completion: @escaping DeletionCompletion) {}
+    func insert(_ feed: [LocalFeedImage], timestamp: Date, completion: @escaping InsertionCompletion) {}
+    func retrieve(completion: @escaping RetrievalCompletion) {}
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
