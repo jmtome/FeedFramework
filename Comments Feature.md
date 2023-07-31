@@ -4483,21 +4483,153 @@ public extension FeedStore {
 
 
 
+In the exact same way as we did with the previous API's, we modify the existing tests to take into account synchronicity instead of asynchronicity.
+
+#### Making the LocalFeedLoader: FeedCache synchronous
+
+Now we have to migrate our **LocalFeedLoader: FeedCache** extension to conform to the new synchronous API's which means going from :
+
+```swift
+extension LocalFeedLoader: FeedCache {
+    public typealias SaveResult = FeedCache.Result
+    
+    public func save(_ feed: [FeedImage], completion: @escaping (SaveResult) -> Void) {
+        store.deleteCachedFeed { [weak self] deletionResult in
+            guard let self = self else { return }
+            
+            switch deletionResult {
+            case.success:
+                self.cache(feed, with: completion)
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+    }
+    
+    private func cache(_ feed: [FeedImage], with completion: @escaping (SaveResult) -> Void) {
+        store.insert(feed.toLocal(), timestamp: currentDate()) { [weak self] error in
+            guard self != nil else { return }
+           
+            completion(error)
+        }
+    }
+}		
+```
+
+To :
+
+```swift
+extension LocalFeedLoader: FeedCache {
+    public typealias SaveResult = FeedCache.Result
+    
+    public func save(_ feed: [FeedImage], completion: @escaping (SaveResult) -> Void) {
+        completion(SaveResult {
+            try store.deleteCachedFeed()
+            try store.insert(feed.toLocal(), timestamp: currentDate())
+        })
+    }
+}
+```
+
+As we can see we have drastically simplified our code by making it synchronous. Its possible to see we have reduced our code one indentation level and its much more easy to read. We have removed the switch statement, and the closure will simply return a .**failure** if it finds any of its **try** statements throwing, if it doesnt, then it completes with **success** .
 
 
 
+#### Making the LocalFeedLoader 'load(completion:)' method asynchronous
+
+Now we will change our **load(completion:)** method so that it uses our new sync api's. Changing it from:
+
+```swift
+extension LocalFeedLoader {
+    public typealias LoadResult = Swift.Result<[FeedImage], Error>
+    
+    public func load(completion: @escaping (LoadResult) -> Void) {
+        store.retrieve { [weak self] result in
+            guard let self = self else { return }
+            
+            switch result {
+            case .failure(let error):
+                completion(.failure(error))
+                
+            case .success(.some(let cache)) where FeedCachePolicy.validate(cache.timestamp, against: self.currentDate()):
+                completion(.success(cache.feed.toModels()))
+                
+            case .success:
+                completion(.success([]))
+            }
+        }
+    }
+}
+```
+
+To:
+
+```swift
+extension LocalFeedLoader {
+    public typealias LoadResult = Swift.Result<[FeedImage], Error>
+    
+    public func load(completion: @escaping (LoadResult) -> Void) {
+        completion(LoadResult {
+            if let cache = try store.retrieve(), FeedCachePolicy.validate(cache.timestamp, against: currentDate()) {
+                return cache.feed.toModels()
+            }
+            return []
+        })
+    }
+}
+```
 
 
 
+Same note as before, we are getting rid of our arrow code and switches, in favour of cleaner code with less completion blocks. In the same fashion, we wrap our result into a **Result** block where we check if the info is cached and then we validate that it respects the cache policy regarding its date. In the case of the **store.retrieve()** throwing, the Result block simply transforms it into a **.failure** result.
 
+The next step is to migrate our **validateCache(completion:)** method to use our new api's. This method is has similarities to the previous load method in the way that it's modified. Since our new api's dont have completion blocks, we dont need to switch the result, and thus getting rid of levels of arrow code.
 
+Previous:
 
+```swift
+extension LocalFeedLoader {
+    public typealias ValidationResult = Result<Void, Error>
 
+    public func validateCache(completion: @escaping (ValidationResult) -> Void) {
+        store.retrieve { [weak self] result in
+            guard let self = self else { return }
+            
+            switch result {
+            case .failure:
+                self.store.deleteCachedFeed(completion: completion)
+                
+            case let .success(.some(cache)) where !FeedCachePolicy.validate(cache.timestamp, against: self.currentDate()):
+                self.store.deleteCachedFeed(completion: completion)
+                
+            case .success:
+                completion(.success(()))
+            }
+        }
+    }
+}
+```
 
+New Api:
 
+```swift
+extension LocalFeedLoader {
+    public typealias ValidationResult = Result<Void, Error>
+    
+    private struct InvalidCache: Error {}
+    
+    public func validateCache(completion: @escaping (ValidationResult) -> Void) {
+        completion(ValidationResult {
+            do {
+                if let cache = try store.retrieve(), !FeedCachePolicy.validate(cache.timestamp, against: currentDate()) {
+                    throw InvalidCache()
+                }
+            } catch {
+                try store.deleteCachedFeed()
+            }
+        })
+    }
+}
+```
 
-
-
-
-
-
+As we analyze the previous code we can also see that we have one less **self** to capture, meaning we are actively reducing the chances of missing a memory cycle by mistake. We can see that the idea here is that we are going to check if the cache exists, and if it respects the cache policy. in case of success nothing happens, but in case of failure we throw an **InvalidCache** error, that is caught by our **catch** block, and which attempts to delete the outdated cache. We are prepared to have this invalid cache state, thats why if it happens we dont get a **.failure** as a result, but a **.success**. The way to get a **.failure** is if the deletion of an outdated cache fails.
