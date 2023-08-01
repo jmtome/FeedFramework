@@ -4686,3 +4686,70 @@ extension LocalFeedLoader: FeedCache {
 As we can see, we dont need to have a **SaveResult** typealias anymore since we dont have a completion closure anymore, we also dont need to wrap our body in a Result block. Our new **save(_feed:) throws** methods just throws when there is an exception, meaning we can simply call the body of our method, containing the **try** statements, without further worries.
 
 We also change all the tests in the same way we did for our previous case adding necessary do-catch blocks where needed and making the logic synchronous.
+
+Next step is to refactor the **LocalFeedLoader**  **load** method :
+
+```swift
+//Previous (using async)
+extension LocalFeedLoader {
+    public typealias LoadResult = Swift.Result<[FeedImage], Error>
+    
+    public func load(completion: @escaping (LoadResult) -> Void) {
+        completion(LoadResult {
+            if let cache = try store.retrieve(), FeedCachePolicy.validate(cache.timestamp, against: currentDate()) {
+                return cache.feed.toModels()
+            }
+            return []
+        })
+    }
+}
+
+//Actual (sync)
+
+extension LocalFeedLoader {
+    public func load() throws -> [FeedImage] {
+        if let cache = try store.retrieve(), FeedCachePolicy.validate(cache.timestamp, against: currentDate()) {
+            return cache.feed.toModels()
+        }
+        return []
+    }
+}
+```
+
+With this change, we will always either get an array of FeedImage (either empty or with the cached feedimages) or it will throw an error. This way we get rid of the completion blocks and the arrow code.
+
+Its also necessary that we make a small change in our **CombineHelpers**, we need to change our **loadPublisher() -> Publisher** method because it uses the old version (async) of our **LocalFeedLoader.load** method. 
+
+We go from: 
+
+```swift
+public extension LocalFeedLoader {
+    typealias Publisher = AnyPublisher<[FeedImage], Error>
+    
+    func loadPublisher() -> Publisher {
+        Deferred {
+            Future(self.load)
+        }
+        .eraseToAnyPublisher()
+    }
+}
+```
+
+to:
+
+```swift
+public extension LocalFeedLoader {
+    typealias Publisher = AnyPublisher<[FeedImage], Error>
+    
+    func loadPublisher() -> Publisher {
+        Deferred {
+            Future { completion in
+                completion(Result{ try self.load() })
+            }
+        }
+        .eraseToAnyPublisher()
+    }
+}
+```
+
+Since our load used to have a completion closure, but not it doesnt, we will have to wrap our new **load** function in a completion block with a Result, type.
