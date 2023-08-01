@@ -4829,6 +4829,97 @@ func sceneWillResignActive(_ scene: UIScene) {
 
 
 
+####       Make CoreData FeedStore implementation sync    
+
+Following step is to migrate our **CoreData** **FeedStore** implementation from async api, to sync api. For this, we are going to migrate the three **FeedStore** Api implementations made on the **CoreDataFeedStore**, **retrieve, insert and deleteCachedFeed**:
+
+**Retrieve**
+
+```swift
+//Async API
+public func retrieve(completion: @escaping RetrievalCompletion) {
+    performAsync { context in
+        completion(Result {
+            try ManagedCache.find(in: context).map {
+                CachedFeed(feed: $0.localFeed, timestamp: $0.timestamp)
+            }
+        })
+    }
+}
+
+//Sync API
+public func retrieve() throws -> CachedFeed? {
+    try performSync { context in
+        Result {
+            try ManagedCache.find(in: context).map {
+                CachedFeed(feed: $0.localFeed, timestamp: $0.timestamp)
+            }
+        }
+    }
+}
+```
+
+
+
+As we did previously with the migration of our previous API's, we are going to migrate from using the **performAsync** to the **performSync** CoreData context methods. Since we don't have completion handlers, we can reduce our code indentation one level, getting rid of the completion block. If this operation succeeds we will return the CachedFeed, and if it fails we will return nil.
+
+**Insert**
+
+```swift
+//Async API
+public func insert(_ feed: [LocalFeedImage], timestamp: Date, completion: @escaping InsertionCompletion) {
+    performAsync { context in
+        completion(Result {
+            let managedCache = try ManagedCache.newUniqueInstance(in: context)
+            managedCache.timestamp = timestamp
+            managedCache.feed = ManagedFeedImage.images(from: feed, in: context)
+            try context.save()
+        })
+    }
+}
+
+//Sync
+public func insert(_ feed: [LocalFeedImage], timestamp: Date) throws {
+    try performSync { context in
+        Result {
+            let managedCache = try ManagedCache.newUniqueInstance(in: context)
+            managedCache.timestamp = timestamp
+            managedCache.feed = ManagedFeedImage.images(from: feed, in: context)
+            try context.save()
+        }
+    }
+}
+```
+
+
+
+**DeleteCachedFeed**
+
+```swift
+//Async
+public func deleteCachedFeed(completion: @escaping DeletionCompletion) {
+    performAsync { context in
+        completion(Result {
+            try ManagedCache.deleteCache(in: context)
+        })
+    }
+}
+//Sync
+public func deleteCachedFeed() throws {
+    try performSync { context in
+        Result {
+            try ManagedCache.deleteCache(in: context)
+        }
+    }
+}
+```
+
+
+
+
+
+
+
 
 
 

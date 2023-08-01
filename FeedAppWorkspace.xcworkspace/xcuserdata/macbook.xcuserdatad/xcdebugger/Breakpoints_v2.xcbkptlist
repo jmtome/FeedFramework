@@ -8,48 +8,16 @@
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "B96AA831-565D-4CE1-82F9-CC45A766542C"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "FeedFramework/Feed Cache/Infrastructure/CoreData/CoreDataFeedStore.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "46"
-            endingLineNumber = "46"
+            startingLineNumber = "47"
+            endingLineNumber = "47"
             landmarkName = "performSync(_:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "B96AA831-565D-4CE1-82F9-CC45A766542C - c08f496f876e2e51"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "FeedFramework.CoreDataFeedStore.performSync&lt;&#x3c4;_0_0&gt;((__C.NSManagedObjectContext) -&gt; Swift.Result&lt;&#x3c4;_0_0, Swift.Error&gt;) throws -&gt; &#x3c4;_0_0"
-                  moduleName = "FeedFramework"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/macbook/Documents/FeedFramework/FeedFramework/Feed%20Cache/Infrastructure/CoreData/CoreDataFeedStore.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "46"
-                  endingLineNumber = "46"
-                  offsetFromSymbolStart = "433">
-               </Location>
-               <Location
-                  uuid = "B96AA831-565D-4CE1-82F9-CC45A766542C - bd65def9a89c667f"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "closure #1 () -&gt; () in FeedFramework.CoreDataFeedStore.performSync&lt;&#x3c4;_0_0&gt;((__C.NSManagedObjectContext) -&gt; Swift.Result&lt;&#x3c4;_0_0, Swift.Error&gt;) throws -&gt; &#x3c4;_0_0"
-                  moduleName = "FeedFramework"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/macbook/Documents/FeedFramework/FeedFramework/Feed%20Cache/Infrastructure/CoreData/CoreDataFeedStore.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "46"
-                  endingLineNumber = "46"
-                  offsetFromSymbolStart = "185">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>
