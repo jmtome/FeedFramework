@@ -4934,7 +4934,25 @@ extension NullStore: FeedStore {
 
 
 
+**InMemoryFeedStore**
 
+
+
+```swift
+extension InMemoryFeedStore: FeedStore {
+    func deleteCachedFeed() throws {
+        feedCache = nil
+    }
+    
+    func insert(_ feed: [LocalFeedImage], timestamp: Date) throws {
+        feedCache = CachedFeed(feed: feed, timestamp: timestamp)
+    }
+    
+    func retrieve() throws -> CachedFeed? {
+        feedCache
+    }
+}
+```
 
 
 
