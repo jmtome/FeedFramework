@@ -4918,6 +4918,54 @@ public func deleteCachedFeed() throws {
 
 
 
+**NullStore**
+
+We will also adapt our NullStore to work with the new sync apis, which since we dont have completion blocks anymore, can just be empty methods or return nil:
+
+```swift
+extension NullStore: FeedStore {
+    func deleteCachedFeed() throws {}
+    
+    func insert(_ feed: [LocalFeedImage], timestamp: Date) throws {}
+    
+    func retrieve() throws -> CachedFeed? { .none }
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
