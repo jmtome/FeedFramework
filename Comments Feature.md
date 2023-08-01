@@ -4753,3 +4753,85 @@ public extension LocalFeedLoader {
 ```
 
 Since our load used to have a completion closure, but not it doesnt, we will have to wrap our new **load** function in a completion block with a Result, type.
+
+
+
+#### Making LocalFeedLoader.validateCache synchronous
+
+Continuing the migration from async api's to the new sync ones, its time to migrate LocalFeedLoader's **validateCache** method.
+
+Originally the method returned a completion closure containing a **ValidationResult** that consisted in a Result<Void, Error>, the new api, however, doesn't need a completion closure since its synchronous, it will either succeed or throw.
+
+The original **validateCache** was this: 
+
+```swift
+extension LocalFeedLoader {
+    public typealias ValidationResult = Result<Void, Error>
+    
+    private struct InvalidCache: Error {}
+    
+    public func validateCache(completion: @escaping (ValidationResult) -> Void) {
+        completion(ValidationResult {
+            do {
+                if let cache = try store.retrieve(), !FeedCachePolicy.validate(cache.timestamp, against: currentDate()) {
+                    throw InvalidCache()
+                }
+            } catch {
+                try store.deleteCachedFeed()
+            }
+        })
+    }
+}
+```
+
+
+
+The synchronous version is:
+
+```swift
+extension LocalFeedLoader {
+    private struct InvalidCache: Error {}
+    
+    public func validateCache() throws {
+        do {
+            if let cache = try store.retrieve(), !FeedCachePolicy.validate(cache.timestamp, against: currentDate()) {
+                throw InvalidCache()
+            }
+        } catch {
+            try store.deleteCachedFeed()
+        }
+    }
+}
+```
+
+
+
+Previously, we had updated this method to comply with our new synch apis from the Cache, this time we are doing another round of refactoring to bring this method completely synchronous, since we dont need completion handlers anymore because we have migrated our apis to sync. As stated earlier, the **ValidationResult** is no longer needed, and we can see that we are losing one more level of indentation and arrow code by getting rid of the completion wrapper.
+
+This change must also be accompanied by a refactor to the **SceneDelegate**, in the **sceneWillResignActive** delegate method, where we were executing a cache validation before the app was closed killed or sent to background. An adjustment is added to reflect the api changes:
+
+```swift
+//Before
+func sceneWillResignActive(_ scene: UIScene) {
+        localFeedLoader.validateCache { _ in }
+}
+    
+//After
+
+func sceneWillResignActive(_ scene: UIScene) {
+    do {
+        try localFeedLoader.validateCache()
+    } catch {
+        logger.error("Failed to validate cache with error: \(error.localizedDescription)")
+    }
+}
+```
+
+
+
+
+
+
+
+
+
