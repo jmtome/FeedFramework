@@ -4633,3 +4633,56 @@ extension LocalFeedLoader {
 ```
 
 As we analyze the previous code we can also see that we have one less **self** to capture, meaning we are actively reducing the chances of missing a memory cycle by mistake. We can see that the idea here is that we are going to check if the cache exists, and if it respects the cache policy. in case of success nothing happens, but in case of failure we throw an **InvalidCache** error, that is caught by our **catch** block, and which attempts to delete the outdated cache. We are prepared to have this invalid cache state, thats why if it happens we dont get a **.failure** as a result, but a **.success**. The way to get a **.failure** is if the deletion of an outdated cache fails.
+
+
+
+#### Make FeedCache Sync
+
+Next step is to make our **<FeedCache>** api abstraction synchronous. This abstraction only has one method, **save(_feed: completion)** and a Result typealias.
+
+```swift
+//Previously
+public protocol FeedCache {
+    typealias Result = Swift.Result<Void, Error>
+
+    func save(_ feed: [FeedImage], completion: @escaping (Result) -> Void)
+}
+
+//New sync api
+public protocol FeedCache {
+    func save(_ feed: [FeedImage]) throws
+}
+```
+
+Since we dont have a completion closure anymore, we dont need to have the Result typealias.
+
+Now we have to modify our previously modified **LocalFeedLoader: FeedCache** extension from this:
+
+```swift
+extension LocalFeedLoader: FeedCache {
+    public typealias SaveResult = FeedCache.Result
+    
+    public func save(_ feed: [FeedImage], completion: @escaping (SaveResult) -> Void) {
+        completion(SaveResult {
+            try store.deleteCachedFeed()
+            try store.insert(feed.toLocal(), timestamp: currentDate())
+        })
+    }
+    
+}
+```
+
+to this:
+
+```swift
+extension LocalFeedLoader: FeedCache {
+    public func save(_ feed: [FeedImage]) throws {
+        try store.deleteCachedFeed()
+        try store.insert(feed.toLocal(), timestamp: currentDate())
+    }
+}
+```
+
+As we can see, we dont need to have a **SaveResult** typealias anymore since we dont have a completion closure anymore, we also dont need to wrap our body in a Result block. Our new **save(_feed:) throws** methods just throws when there is an exception, meaning we can simply call the body of our method, containing the **try** statements, without further worries.
+
+We also change all the tests in the same way we did for our previous case adding necessary do-catch blocks where needed and making the logic synchronous.
