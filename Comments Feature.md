@@ -4974,6 +4974,33 @@ We delete the old api's aswell as the default implementations and the deprecated
 
 
 
+#### Subscribe upstream store subscriptions in a background queue
+
+In the same way as we did earlier in other parts of the project, we will make the **makeRemoteFeedLoaderWithFallback** , and **makeRemoteLoadMoreLoader** subscribe upstream in a background thread, in the **scheduler** we created previously in this project.
+
+```swift
+private func makeRemoteFeedLoaderWithLocalFallback() -> AnyPublisher<Paginated<FeedImage>, Error> {
+    makeRemoteFeedLoader()
+        .caching(to: localFeedLoader)
+        .fallback(to: localFeedLoader.loadPublisher)
+        .map(makeFirstPage)
+        .subscribe(on: scheduler)
+        .eraseToAnyPublisher()
+}
+
+private func makeRemoteLoadMoreLoader(last: FeedImage?) -> AnyPublisher<Paginated<FeedImage>, Error> {
+    localFeedLoader.loadPublisher()
+        .zip(makeRemoteFeedLoader(after: last))
+        .map { (cachedItems, newItems) in
+            (cachedItems + newItems, newItems.last)
+        }
+        .map(makePage)
+        .caching(to: localFeedLoader)
+        .subscribe(on: scheduler)
+        .eraseToAnyPublisher()
+}
+```
+
 
 
 
