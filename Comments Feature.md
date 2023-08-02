@@ -4956,7 +4956,21 @@ extension InMemoryFeedStore: FeedStore {
 
 
 
+#### Cleaning up
 
+Now that the new sync api's are in play, its time to remove the old API's and result types that arent used anymore from the **<FeedStore>** , the final code is:
+
+```swift
+public typealias CachedFeed = (feed: [LocalFeedImage], timestamp: Date)
+
+public protocol FeedStore {
+    func deleteCachedFeed() throws
+    func insert(_ feed: [LocalFeedImage], timestamp: Date) throws
+    func retrieve() throws -> CachedFeed?
+}
+```
+
+We delete the old api's aswell as the default implementations and the deprecated ones. 
 
 
 
