@@ -46,9 +46,9 @@ class FeedAcceptanceTests: XCTestCase {
         onlineFeed.simulateLoadMoreFeedAction()
         onlineFeed.simulateFeedImageViewVisible(at: 2)
         
-//        let offlineFeed = launch(httpClient: .offline, store: sharedStore)
+        let offlineFeed = launch(httpClient: .offline, store: sharedStore)
         
-//        XCTAssertEqual(offlineFeed.numberOfRenderedFeedImageViews(), 3)
+        XCTAssertEqual(offlineFeed.numberOfRenderedFeedImageViews(), 3)
 //        XCTAssertEqual(offlineFeed.renderedFeedImageData(at: 0), makeImageData0())
 //        XCTAssertEqual(offlineFeed.renderedFeedImageData(at: 1), makeImageData1())
 //        XCTAssertEqual(offlineFeed.renderedFeedImageData(at: 2), makeImageData2())
@@ -89,7 +89,7 @@ class FeedAcceptanceTests: XCTestCase {
         httpClient: HTTPClientStub = .offline,
         store: InMemoryFeedStore = .empty
     ) -> ListViewController {
-        let sut = SceneDelegate(httpClient: httpClient, store: store)
+        let sut = SceneDelegate(httpClient: httpClient, store: store, scheduler: .immediateOnMainQueue)
         sut.window = UIWindow(frame: CGRect(x: 0, y: 0, width: 1, height: 1))
         sut.configureWindow()
         
@@ -98,7 +98,7 @@ class FeedAcceptanceTests: XCTestCase {
     }
     
     private func enterBackground(with store: InMemoryFeedStore) {
-        let sut = SceneDelegate(httpClient: HTTPClientStub.offline, store: store)
+        let sut = SceneDelegate(httpClient: HTTPClientStub.offline, store: store, scheduler: .immediateOnMainQueue)
         sut.sceneWillResignActive(UIApplication.shared.connectedScenes.first!)
     }
     

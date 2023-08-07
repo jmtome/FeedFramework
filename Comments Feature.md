@@ -3527,6 +3527,1480 @@ We run the tests again and we see that they pass: the lookup table has solved ou
 
 
 
+### Quick Recap Live Session #001:
+
+It was shown how to decouple modules from infrastructure details, for example, we refactor the FeedAPI Module and we decoupled it from the HTTPClient as we can see in the following image, no arrows are going from the FeeedAPI Module to the Client.
+
+![image-20230724161314591](/Users/macbook/Library/Application Support/typora-user-images/image-20230724161314591.png)
+
+
+
+The Client lives in its own Infrastructure Module, and we compose the FeedAPI Logic with the infrastructure in the Composition Root (SceneDelegate). So, our FeedAPI Module doesn't know about the Infrastructure, and the infrastructure doesn't know about the FeedAPI Module.
+
+```swift
+  private func makeRemoteFeedLoader(after: FeedImage? = nil) -> AnyPublisher<[FeedImage], Error> {
+        let url = FeedEndpoint.get(after: after).url(baseURL: baseURL)
+        
+        return httpClient
+            .getPublisher(url: url)
+            .tryMap(FeedItemsMapper.map)
+            .eraseToAnyPublisher()
+    }
+```
+
+They are composed as we see above, in the SceneDelegate.
+
+
+
+As a result we eliminated a lot of boilerplate code, we deleted the FeedLoader protocol which was async with the completion block, and we also made the FeedAPI Logic, the mapper, synchronous (input-output).
+
+Going from asynchronous code to synchronous code makes everything simpler, since we dont have completion blocks, closures etc. 
+
+Its important to bear in mind that the infrastructure, the HTTPClient, is still asynchronous and it makes the request and at somepoint its going to complete, and then we map that response with our mapper, which is syncrhonous, effectively decoupling the synchrony details in the infrastructure details from the FeedAPI module. 
+
+
+
+The question now is: can we make other modules synchronous aswell and move asynchrony always to the composition root? Yes, we can, we can follow the same process as followed in Live #001 to decouple the modules from asynchrony.
+
+So, the steps were:
+
+- We decouple the module from the infrastructure details
+- We make the module functions synchronous
+- Then we compose it in the infrastructure either using Decorators, Composites or Combine/RxSwift.
+
+
+
+Today we are going to show a different way of doing it, we are going to convert another async API into a sync API to decouple modules from Async details, which will simplify the development, testing and maintenance of those components. Of course we still want to mantain the same benefits of async excecution such as running network and database operations concurrently without blocking the main thread.
+
+### Migrating Async Modules to Sync
+
+For example, the **<FeedCache>** protocol, which is defined in the **Domain Module**, is asynchronous, it has a completion block. So the service abstraction, which is defined in the domain layer, is only asynchronous because of the infrastructure details. Same thing happens with the **<FeedImageDataCache>**, which is also async and has a completion block. Also the **<FeedImageDataLoader>**, it's a domain abstraction which is async with a completion block.
+
+All of these abstractions in the **domain module** are only asynchronous because the infrastructure implementation needs to be asynchronous, because we don't want to block the main thread.
+
+Same thing is happening with infrastructure abstractions,  the **<FeedStore>** aswell as the **<FeedImageDataStore>** which, along the implementation, are running async since we dont want to run the DB queries synchronously and block the clients (same as we wouldn't want to block them when making a network request), but then, we are leaking infrastructure details into the **Domain**.
+
+This is pretty common in Swift Async API's, it's common to see a bunch of Domain abstractions with either completion blocks or even RxSwift/Combine publishers, because you need to deal with asynchrony. This is not a big problem but its a leaky abstraction, and if you can eliminate the Leaky abstraction, you can make your domain simpler to develop/maintain and test.
+
+This infrastructure being async "problem", becomes a chain effect that leaks into the rest of our domains, forcing us to make every API async. We don't want to leak infrastructure details.
+
+
+
+**A solution to avoid leaking infrastructure details into everywhere is to make the infrastructure synchronous, so we don't leak these async details everywhere. And we move asynchrony into the composition root. (threading is a cross cutting concern, and we can deal with cross-cutting concerns in the composition root so we avoid coupling modules with unnecesary details).** 
+
+
+
+#### Eliminating Completion Blocks (avoiding pyramid of doom)
+
+Starting with **<FeedImageDataStore>**, we analyze the `insert` and `retrieve` methods to see how we can get rid of the completion code.
+
+We propose synchronous method signatures that are completely synchronous, but that can fail, therefore they **throw**:
+
+```swift
+	func insert(_ data: Data, for url: URL) throws
+	func retrieve(dataForURL url: URL) throws -> Data?
+```
+
+We are making these synchronous and eliminating the completion blocks we can then make every component synchronous and deal with asyncrony somewhere else (Composition Root). 
+
+Nevertheless, changing this interface will break clients, so temporarily we will add an extension with default implementations that will use the async API's that we already have, but respecting the synchronous signature. For this we will create a **DispatchGroup**, enter the group, and then inside the async API, when the closure is executed, we assign the result, and leave the group. Outside the closure, we wait for the completion async completion to finish (in that time, the client is locked in the meanwhile, which is why it becomes synchronous). Finally we try to get the result and return it.
+
+```swift
+func retrieve(dataForURL url: URL) throws -> Data? {
+    let group = DispatchGroup()
+    
+    group.enter()
+    var result: RetrievalResult!
+    retrieve(dataForURL: url, completion: {
+        result = $0
+        group.leave()
+    })
+    group.wait()
+    
+    return try result.get()
+}
+```
+
+We do the same thing for the insertion: 
+
+```swift
+func insert(_ data: Data, for url: URL) throws {
+    let group = DispatchGroup()
+    
+    group.enter()
+    var result: InsertionResult!
+    insert(data, for: url) {
+        result = $0
+        group.leave()
+    }
+    group.wait()
+    
+    return try result.get()
+}
+```
+
+So if we fail this will throw an error, and if it succeeds it will return the **Data**. 
+
+This is just a temporary implementation so that we dont break the clients. 
+
+Next step is to deprecate the original asynch API's with an **@available(*, deprecated)** statement before the protocol signatures, and also provide default empty implementations for the deprecated implementations:
+
+```swift
+func insert(_ data: Data, for url: URL, completion: @escaping (InsertionResult) -> Void) {}
+func retrieve(dataForURL url: URL, completion: @escaping (RetrievalResult) -> Void) {}
+```
+
+After we are done, we are going to remove the new implementations of the async-sync methods.
+
+
+
+#### Migrating the deprecated APIs to the new API's
+
+Now we are going to follow the compiler to see where the warnings regarding our deprecated methods are and migrate to the new sync API's.
+
+##### Save Images Synchronously
+
+First we will migrate the **LocalFeedImageDataLoader: FeedImageDataCache** extension that conforms to the **<FeedImageDataCache>** protocol API for saving, the current code is:
+
+```swift
+extension LocalFeedImageDataLoader: FeedImageDataCache {
+    public typealias SaveResult = FeedImageDataCache.Result
+    
+    public enum SaveError: Error {
+        case failed
+    }
+    
+    public func save(_ data: Data, for url: URL, completion: @escaping (SaveResult) -> Void) {
+        store.insert(data, for: url) { [weak self] result in
+            guard self != nil else { return }
+            completion(result.mapError { _ in SaveError.failed })
+        }
+    }
+}
+```
+
+Where the compiler tells us that **insert** is deprecated.
+
+For this migration, we will start with a test in the **CacheFeedImageUseCaseTests**. Inspecting the test helpers such as **expect**, we see how we depend on asynchrony, using the expectations, we end up having to wait, but we can simplify that logic now with the async API's.
+
+What we are going to do is convert the **FeedImageDataStoreSpy**'s async methods into sync. At the moment what our spies' methods are doing is capturing the completion blocks so that we can call them in the future, but if the spy's implementation were synchronous, we wouldnt need to capture, we would need to stub the result upfront, to return something, either error or void, for which we create a new **private var insertionResult: Result<Void, Error>?** property that we will use for stubbing:
+
+```swift
+  private var insertionResult: Result<Void, Error>?
+    
+    func insert(_ data: Data, for url: URL) throws {
+        receivedMessages.append(.insert(data: data, for: url))
+        try insertionResult?.get()
+    }
+
+//We also modify the helpers
+func completeInsertion(with error: Error) {
+    insertionResult = .failure(error)
+}
+    
+func completeInsertionSuccessfully() {
+    insertionResult = .success(())
+}
+```
+
+its important to understand that in the sync API's we need to stub the value before the method is invoked before we need to return a value immediately, synchronously.
+
+This can be seen clearly in our **expect** method helper:
+
+![image-20230725164306120](/Users/macbook/Library/Application Support/typora-user-images/image-20230725164306120.png)
+
+the **action** closure, which in the previous image is shown to be executed at the end, in the new synch API's it needs to be executed at the begginning:
+
+![image-20230725164343842](/Users/macbook/Library/Application Support/typora-user-images/image-20230725164343842.png)
+
+because the Stub NEEDS to be configured before executing the sync method. As expected, these changes ake our tests fail, which is the cue to go fix them in the **LocalFeedImageDataLoader: FeedImageDataCache** extension. So in our original async code we had:
+
+``` swift
+public func save(_ data: Data, for url: URL, completion: @escaping (SaveResult) -> Void) {
+    store.insert(data, for: url) { [weak self] result in
+        guard self != nil else { return }
+        completion(result.mapError { _ in SaveError.failed })
+    }
+}	
+```
+
+Where our async api was waiting for the completion to then call the completion block. We can now do that synchronously by wrapping the result and calling the synchronous API without the completion block:
+
+```swift
+public func save(_ data: Data, for url: URL, completion: @escaping (SaveResult) -> Void) {
+        completion(SaveResult {
+            try store.insert(data, for: url)
+        }.mapError {_ in SaveError.failed })
+}
+```
+
+This will be executed synchronously. Now the tests run without error, except for a deallocation test that has no reason to exist anymore since we are not working async anymore, so we delete it.
+
+
+
+##### Load images Syncronously
+
+Now we are going to attend to the warning regarding the loading of images for the **retrieve** method. 
+
+In the same fashion as in the previous case, we will modify our Spy's result switching from a completion array, to a stub, returning either optional data or error.
+
+```swift
+private var retrievalResult: Result<Data?, Error>?
+
+
+func retrieve(dataForURL url: URL) throws -> Data? {
+    receivedMessages.append(.retrieve(dataFor: url))
+    return try retrievalResult?.get()
+}
+
+func completeRetrieval(with error: Error) {
+    retrievalResult = .failure(error)
+}
+
+func completeRetrieval(with data: Data?) {
+    retrievalResult = .success(data)
+}
+```
+
+Same as before, we use Stubs in our Spy, and now all our spy methods are synchronous. The same procedure we applied to the **expect** helper from **save** applies here, we need to run the **action** closure at the begginning of the **expect**  helper method instead of at the end. Same as with the **save** method, the tests regarding asynchrony and the correct results expected from deallocation can be removed since we are now working with synchronous tasks. (Regarding the cancel task test: you cant cancel a synchronous process because it happens instantly, and all the cancelling regarding the asynchronous tasks are handled in the Composition Root).
+
+We run the test and they fail, which leads us to modifying our **load** code in the **LocalFeedImageDataLoader: FeedImageDataLoader** extension, in the method **loadImageData(from url:)** 
+
+Previous code: 
+
+```swift
+public func loadImageData(from url: URL, completion: @escaping (LoadResult) -> Void) -> FeedImageDataLoaderTask {
+    let task = LoadImageDataTask(completion)
+    store.retrieve(dataForURL: url) { [weak self] result in
+        guard self != nil else { return }
+        
+        task.complete(with: result
+            .mapError { _ in LoadError.failed }
+            .flatMap { data in
+                data.map { .success($0) } ?? .failure(LoadError.notFound)
+            })
+    }
+    return task
+}
+```
+
+```swift
+public func loadImageData(from url: URL, completion: @escaping (LoadResult) -> Void) -> FeedImageDataLoaderTask {
+    let task = LoadImageDataTask(completion)
+   
+    task.complete(
+        with: Swift.Result {
+        try store.retrieve(dataForURL: url)
+        }
+        .mapError { _ in LoadError.failed }
+        .flatMap { data in
+            data.map { .success($0) } ?? .failure(LoadError.notFound)
+        })
+    
+    return task
+}
+```
+
+Now the tests pass, and we have removed one level of indentation since we dont have completion blocks.
+
+
+
+### Making the Domain Abstractions synchronous
+
+#### Make FeedImageDataCache sync    
+
+Now we are going to look at our domain abstractions to make them synchronous, we start with **FeedImageDataCache**  and we will go from this: 
+
+```swift
+public protocol FeedImageDataCache {
+    typealias Result = Swift.Result<Void, Error>
+    
+    func save(_ data: Data, for url: URL, completion: @escaping (Result) -> Void)
+}
+```
+
+To this:
+
+```swift
+public protocol FeedImageDataCache {
+    func save(_ data: Data, for url: URL) throws
+}
+```
+
+Since the API is now synchronous we do not need for completion results because it either saves or throws an error that we will later catch.
+
+We now follow the compiler and fix the errors we got with this change in the **LocalFeedImageDataLoader: FeedImageDataCache** extension. For starters we dont need the result type, since its now synchronous and we modify our **save** method from: 
+
+```swift
+public func save(_ data: Data, for url: URL, completion: @escaping (SaveResult) -> Void) {
+    completion(SaveResult {
+        try store.insert(data, for: url)
+    }.mapError {_ in SaveError.failed })
+}
+```
+
+to:
+
+```swift
+public func save(_ data: Data, for url: URL) throws {
+    do {
+        try store.insert(data, for: url)
+    } catch {
+        throw SaveError.failed
+    }
+}
+```
+
+So, we try to save the data, and if it fails we catch the error and throw a personalized error.
+
+Now we have to fix the tests, which were still configured for the async API. Since we don't have completion closures anymore, we reduce one indentation and we have less code.
+
+Finally, we have to modify our **LocalFeedLoader** extension method **saveIgnoringResult**. 
+
+####       Make FeedImageDataLoader sync    
+
+Now we will apply the same process to make our **FeedImageDataLoader**, we want to convert it from Async, to Sync. This conversion is a bit more complex, since we have a cancel task
+
+```swift
+public protocol FeedImageDataLoaderTask {
+    func cancel()
+}
+public protocol FeedImageDataLoader {
+    typealias Result = Swift.Result<Data, Error>
+    func loadImageData(from url: URL, completion: @escaping (Result) -> Void) -> FeedImageDataLoaderTask
+}
+```
+
+But as we said before, we get this for free in the composition root, so we can get rid of it and refactor our **loadImageData** signature, which will now return just Data and if it fails it will throw, we also get rid of the result:
+
+```swift
+public protocol FeedImageDataLoader {
+    func loadImageData(from url: URL) throws -> Data
+}
+```
+
+which is the new sync API. 
+
+We follow the compiler and go fix the **LocalFeedImageDataLoader: FeedImageDataLoader** extension, for starters we dont need the **LoadResult** type alias anymore or the **LoadImageDataTask** , our **loadImageData** method goes from this:
+
+```swift
+public func loadImageData(from url: URL, completion: @escaping (LoadResult) -> Void) -> FeedImageDataLoaderTask {
+        let task = LoadImageDataTask(completion)
+       
+        task.complete(
+            with: Swift.Result {
+            try store.retrieve(dataForURL: url)
+            }
+            .mapError { _ in LoadError.failed }
+            .flatMap { data in
+                data.map { .success($0) } ?? .failure(LoadError.notFound)
+            })
+        
+        return task
+    }
+```
+
+to this:
+
+```swift
+public func loadImageData(from url: URL) throws -> Data {
+        do {
+            if let imageData = try store.retrieve(dataForURL: url) {
+                return imageData
+            }
+        } catch {
+            throw LoadError.failed
+        }
+        
+        throw LoadError.notFound
+    }
+```
+
+In the same fashion we can start modifying our tests that required expectations for tests without them, since we dont need them now. We also get rid of one level of indentation, as said before.
+
+Finally we also have to modify our CombineHelpers file, the **FeedImageDataLoader** extension, since we went Sync, the **FeedImageDataLoaderTask** doesn't exist anymore, and every publisher is cancellable by default, so we go from this: 
+
+```swift
+public extension FeedImageDataLoader {
+    typealias Publisher = AnyPublisher<Data, Error>
+    
+    func loadImageDataPublisher(from url: URL) -> Publisher {
+        var task: FeedImageDataLoaderTask?
+        
+        return Deferred {
+            Future { completion in
+                task = self.loadImageData(from: url, completion: completion)
+            }
+        }
+        .handleEvents(receiveCancel: { task?.cancel() })
+        .eraseToAnyPublisher()
+    }
+}
+```
+
+to this:
+
+```swift
+public extension FeedImageDataLoader {
+    typealias Publisher = AnyPublisher<Data, Error>
+    
+    func loadImageDataPublisher(from url: URL) -> Publisher {
+        return Deferred {
+            Future { completion in
+                completion(Result {
+                    try self.loadImageData(from: url)
+                })
+            }
+        }
+        .eraseToAnyPublisher()
+    }
+}
+```
+
+
+
+
+
+![image-20230726142138064](/Users/macbook/Library/Application Support/typora-user-images/image-20230726142138064.png)
+
+
+
+Now we've made both the **<FeedImageData>** Cache and the **<FeedImageDataLoader>** synchronous, and we can do the same for the **<FeedCache>** . But first we'll see to make the **<FeedImageDataStore>** synchronous.
+
+So, we go to **CoreDataFeedStore** and we see that the **perform** method provided by core data is async. So we will rename it to show that to **performAsync**. 
+
+Next step is to make CoreData **<FeedImageDataStore>** implementation syncronous. For this we will need to create a sync version of it.
+
+We will start with the CoreData tests in the CoreDataFeedImageDataStoreTests. We need to modify our **expect** method and stop using expectations, since those were to test async api's and now we are working with sync apis. We will also modify the other helper methods such as **insert** in the same way. What we wont change, at least not now, is that our FeedStore still is asynchronous, so in our test code, in the **insert** helper method we will keep that.
+
+
+
+Initially the tests will pass, since in the **FeedImageDataStore** we have created our sync versions of the methods **insert** and **retrieve** which internally make use of a **DispatchGroup** to execute async code in an sync mode, making the clients wait. This will be changed in the future, but for now the tests pass.
+
+
+
+Going back to the **CoreDataFeedStore+FeedImageDataStore** we examine our **insert** and **retrieve** methods, and we see they are being used with **performAsync** method we created to work with **CoreData**. Our next goal is to create a **performSync** method that allows us to work synchronously. We will create this method below the **performAsync** method, in the **CoreDataFeedStore** .
+
+In synchronous operations, closures dont need to be escaping, since we are not holding a reference to it, it's not escaping the scope of the function, and they will execute immediately, and when it returns it doesn't hold any reference to the closure. Therefore the **action** closure of our **performSync** wont be escaping.
+
+So, a sync API needs to return the result immediately, not in the future, so we need to return a result here, but what should we return? Somes we return **Data?** for the retrieve and sometimes we return **Void**, meaning the result changes depending on the operation.
+
+So we can create a generic result type and we can then returl the generic result. And also our closure returning **action** can also return a Result<R, Error>, and if it fails it should throw an error:
+
+```swift
+func performSync<R>(_ action: (NSManagedObjectContext) -> Result<R, Error>) throws -> R
+```
+
+![image-20230727142316076](/Users/macbook/Library/Application Support/typora-user-images/image-20230727142316076.png)
+
+We mentioned earlier that we do not need an escaping closure, since we are executing the task synchronously, but we can see that CoreData's **perform** method 
+
+![image-20230727142402299](/Users/macbook/Library/Application Support/typora-user-images/image-20230727142402299.png)
+
+So what we can do is use the **performAndWait** method, which is synchronous and will wait until the task is completed to continue
+
+![image-20230727142443159](/Users/macbook/Library/Application Support/typora-user-images/image-20230727142443159.png)
+
+finally our **performSync** method looks like:
+
+```swift
+ func performSync<R>(_ action: (NSManagedObjectContext) -> Result<R, Error>) throws -> R {
+   	let context = self.context
+   	var result: Result<R, Error>!
+   	context.performAndWait {
+   	    result = action(context)
+   	}
+   	return try result.get()
+}
+```
+
+We either got a result or it will throw an error.
+
+Now going back to the API's in the **CoreDataFeedStore: FeedImageDataStore** extension, we can perform our **insert** and **retrieve** using the new sync API's, by using the **performSync** method:
+
+Going from this:
+
+```swift
+extension CoreDataFeedStore: FeedImageDataStore {
+    public func insert(_ data: Data, for url: URL, completion: @escaping (FeedImageDataStore.InsertionResult) -> Void) {
+        performAsync { context in
+            completion(Result {
+                try ManagedFeedImage.first(with: url, in: context)
+                    .map { $0.data = data }
+                    .map(context.save)
+            })
+        }
+    }
+
+    public func retrieve(dataForURL url: URL, completion: @escaping (FeedImageDataStore.RetrievalResult) -> Void) {
+        performAsync { context in
+            completion(Result {
+                try ManagedFeedImage.data(with: url, in: context)
+            })
+        }
+    }
+}
+```
+
+
+
+To this:
+
+```swift
+extension CoreDataFeedStore: FeedImageDataStore {
+    public func insert(_ data: Data, for url: URL) throws {
+        try performSync { context in
+            Result {
+                try ManagedFeedImage.first(with: url, in: context)
+                    .map { $0.data = data }
+                    .map(context.save)
+            }
+        }
+    }
+    
+    public func retrieve(dataForURL url: URL) throws -> Data? {
+        try performSync { context in
+            Result {
+                try ManagedFeedImage.data(with: url, in: context)
+            }
+        }
+    }
+}
+```
+
+We see how we have eliminated the completion blocks.
+
+
+
+#### Removing the deprecated async API's
+
+So, now we have everything we need regarding the new sync API's, and we can therefore remove the async, deprecated api's. We are going to remove the RetrievalResult and the InsertionResult aswell as the async methods of **retrieve** and **insert** , we will also remove the helper extension, and our new **FeedImageDataStore** looks like:
+
+```swift
+public protocol FeedImageDataStore {
+    func insert(_ data: Data, for url: URL) throws
+    func retrieve(dataForURL url: URL) throws -> Data?
+}
+```
+
+
+
+Some changes must be done to the CoreDateFeedImageDataStoreTests too, since we removed the result types aswell. We will be getting rid of the test_sideEffects_runSerially, since all the sync processes run serially.
+
+We must also modify our **NullStore: FeedImageDataStore** extension that provides the default **insert** and **retrieve** methods, to reflect the changes we made. We must modify too, the **InMemoryFeedStore: FeedImageDataStore** that also was making use of the async apis, and change them to work with the sync apis.
+
+
+
+So, all the API's are now synchronous: FeedImageDataCache, FeedImageDataLoader, etc. So the abstractions are syncronous, which makes the implementations much simpler as well and we are not leaking the asynchrony details everywhere.
+
+
+
+If we run the app again, and add a breakpoint on our newly created method **performSync**, we can see that its being executed in the Main Thread, and, that the method **performAndWait** is indeed blocking the Main Thread/queue, until the CoreData query finishes. This can make the UI unresponsive for a while depending on how long it takes to execute the query and we dont want that.
+
+How can we maintain te benefits of an async API with a sync api? -> **By moving asynchrony to the Composition Root** . Where we could either use a Decorator, or in our case, Combine's **subscribe(on:...)** method.
+
+We will do that next.
+
+### Inject asynchrony in the Composition Root so as not to block the Main Queue
+
+So now, we've made all the following implementations synchronous:
+
+![image-20230727164804706](/Users/macbook/Library/Application Support/typora-user-images/image-20230727164804706.png)
+
+But we are blocking the Main Queue, as we pointed out earlier, by using the **performAndWait** method from CoreData's framework.
+
+Going to our Composition Root (SceneDelegate), and analyzing our **makeLocalImageLoaderWithRemoteFallback(url: URL) -> FeedImageDataLoader.Publisher** method:
+
+```swift
+private func makeLocalImageLoaderWithRemoteFallback(url: URL) -> FeedImageDataLoader.Publisher {
+    let localImageLoader = LocalFeedImageDataLoader(store: store)
+    
+    return localImageLoader
+        .loadImageDataPublisher(from: url)
+        .logCacheMisses(url: url, logger: logger)
+        .fallback(to: { [httpClient, logger] in
+            httpClient
+                .getPublisher(url: url)
+                .logError(url: url, logger: logger)
+                .logElapsedTime(url: url, logger: logger)
+                .tryMap(FeedImageDataMapper.map)
+                .caching(to: localImageLoader, using: url)
+        })
+}
+```
+
+We can see that first we try to load from the cache, if we dont have anything there we try an API request, so the UI requests for the image in the main queue and we were dispatching it in the background queue, we need to to the same here. This can be done with a Decorator or using Combine/RxSwift using the **subscribe(on: Scheduler)**  and subscribing to **DispatchQueue.global()** which implements the scheduler protocol.
+
+```swift
+private func makeLocalImageLoaderWithRemoteFallback(url: URL) -> FeedImageDataLoader.Publisher {
+    let localImageLoader = LocalFeedImageDataLoader(store: store)
+    
+    return localImageLoader
+        .loadImageDataPublisher(from: url)
+        .logCacheMisses(url: url, logger: logger)
+        .fallback(to: { [httpClient, logger] in
+            httpClient
+                .getPublisher(url: url)
+                .logError(url: url, logger: logger)
+                .logElapsedTime(url: url, logger: logger)
+                .tryMap(FeedImageDataMapper.map)
+                .caching(to: localImageLoader, using: url)
+        })
+        .subscribe(on: DispatchQueue.global())
+        .eraseToAnyPublisher()
+}
+```
+
+Now if we run the app with the same checkpoint in the **performSync<R>** method in our CoreDataFeedStore, we can see that we are now indeed in a background thread and not in the main thread:
+
+![image-20230727170725236](/Users/macbook/Library/Application Support/typora-user-images/image-20230727170725236.png)
+
+so, the subscribe(on: ) publisher, allows us to execute work in any provided scheduler, in this case we are using the **DispatchQueue.global()** which is a concurrente queue. Everytime we jump into the breakpoint we might see we are on a different thread, this is normal, this is because the global queue will choose whichever queue/thread is idle and run the operation concurrently. So if your starting implementation is thread safe, the global dispatch queue will do just fine, but if its not thread safe you can create your own background queue to run the operations.
+
+
+
+#### Creating the Scheduler
+
+So, we'll start by creating a scheduler in our Composition Root:
+
+```swift
+private lazy var scheduler = DispatchQueue(label: "com.jmt.wot.FeedApp.FeedApp.infra.queue", qos: .userInitiated)	
+
+```
+
+so now, we can use this scheduler, which is a background queue but serial, because, by default, DispatchQueue is serial.
+
+
+
+We run again the app, and we can see that we are running in our infra queue, which is serial,
+
+![image-20230727171704613](/Users/macbook/Library/Application Support/typora-user-images/image-20230727171704613.png)
+
+so we dont block the main thread, because  we subscribe the upstream of operations with our own scheduler, so we are controlling all the threading from the composition root aswell.
+
+So, if our components are not thread-safe, we should always execute our operations in a serial scheduler/queue. Therefore, where we cache the feed to the database, we also need to perform it in the scheduler, using the same scheduler (**Every operation in the store should be excecuted in the same serial scheduler if its not thread safe**)
+
+```swift
+private func makeLocalImageLoaderWithRemoteFallback(url: URL) -> FeedImageDataLoader.Publisher {
+    let localImageLoader = LocalFeedImageDataLoader(store: store)
+    
+    return localImageLoader
+        .loadImageDataPublisher(from: url)
+        .logCacheMisses(url: url, logger: logger)
+        .fallback(to: { [httpClient, logger, scheduler] in
+            httpClient
+                .getPublisher(url: url)
+                .logError(url: url, logger: logger)
+                .logElapsedTime(url: url, logger: logger)
+                .tryMap(FeedImageDataMapper.map)
+                .caching(to: localImageLoader, using: url)
+                .subscribe(on: scheduler)
+                .eraseToAnyPublisher()
+        })
+        .subscribe(on: scheduler)
+        .eraseToAnyPublisher()
+}
+```
+
+Its not necessary to make the components thread safe if you control threading as a cross-cutting concern in  the composition root, this way the implementations can be much simpler, **but since CoreData is thread-safe already (if we are using the `perform` API's (either `perform`(async) or `performAndWait`(sync))) , we can make a concurrent queue** :
+
+```swift
+private lazy var scheduler = DispatchQueue(label: "com.jmt.wot.FeedApp.FeedApp.infra.queue",
+                                           qos: .userInitiated,
+                                           attributes: .concurrent)
+```
+
+we run again, and we can clearly see that we are running concurrently in our infra queue
+
+![image-20230727173521356](/Users/macbook/Library/Application Support/typora-user-images/image-20230727173521356.png)
+
+which concurrently will choose whatever thread is idle to run the operations.
+
+So, the **subscribe(on:)** publisher has a counterpart, the **receive(on:)**, which we used already to dispatch to the main queue. So what we will do next is **receive(on:)** the main queue.
+
+
+
+**Subscribe(on:)**, affects the upstream messages, while **receive(on:)** the downstream messages:
+
+So when we use the **subscribe(on: upstreamScheduler)** publisher, the upstream will be executed with that **upstreamScheduler** (arrow up), and with the **receive(on: downstreamScheduler)** publisher, the downstream (arrow down) will be affected by that **downstreamScheduler** 
+
+![image-20230727174247415](/Users/macbook/Library/Application Support/typora-user-images/image-20230727174247415.png)
+
+So all the operations pointed by the **up arrow** will be excecuted in the **scheduler** (background concurrence scheduler) but the results pointed by the **down arrow** will be dispatched to the **DispatchQueue.main** scheduler (main queue scheduler).
+
+This way, we can subscribe on the background scheduler, with everything upwards from the subscribe(on:) will be excecuted in our concurrent **scheduler** and the results will be passed down and received in the **DispatchQueue.main** scheduler. 
+
+This was shown here for explanation purposes, but in this particular case we do not need the **receive(on:)** method here, because the **LoadResourcePresentationAdapter** already does it, it already dispatches on the main queue before updating the UI, with the **dispatchOnMainQueue() -> AnyPublisher<Output, Failure>** that we created in the **CombineHelpers** , that dispatches using the **receive(on:)** that affects the downstream. 
+
+![image-20230727174928691](/Users/macbook/Library/Application Support/typora-user-images/image-20230727174928691.png)
+
+We can see that the **dispatchOnMainQueue()** will affect all of the downstream of events that will all be on the main queue, regardless of what the upstream did. This is how we can control threading in the Composition Root. (We could use Decorators but using Combine we get this for free as an universal abstraction)
+
+**So, we can decouple all modules from the infra details, from async details so they are easier to develop mantain and test.** 
+
+
+
+We run the App and it works. But there is a problem, the acceptance tests expect the code to run synchronously with the In-memory stub, but since we are dispatching this work in a background queue the acceptance test will fail because they dont wait for operations to finish, specifically the tests that were testing the rendered images with the data acquired from the requests vs the dummy image data. 
+
+We could also make the test wait, and thus making it slow, there exist some third party test frameworks able to wait for operations to finish asynchronously. It works but it adds friction/delay, makes the test slower. 
+
+Another way we could deal with that is to inject the scheduler, instead of always using the **concurrent** **scheduler** in our SceneDelegate, we can replace with an immediate scheduler during tests, so we use the **background** **scheduler** in production and during tests we use an **immediate** **scheduler**. So the idea is to inject a **scheduler** into the **SceneDelegate**, like we inject the **HttpClient** infrastructure details, because asynchrony is also an infrastructure detail!.
+
+So, we pass an scheduler into the SceneDelegate init, that conforms to the **<Scheduler>** protocol
+
+![image-20230727191838301](/Users/macbook/Library/Application Support/typora-user-images/image-20230727191838301.png)
+
+ the problem is that the protocol defines two associated types:
+
+![image-20230727191709334](/Users/macbook/Library/Application Support/typora-user-images/image-20230727191709334.png)
+
+so we cannot pass it as an argument directly, or even hold it as a property, because the compiler needs to know the associated types.
+
+![image-20230727191747229](/Users/macbook/Library/Application Support/typora-user-images/image-20230727191747229.png)
+
+So, a protocol with associated types is an incomplete protocol, you cannot use it directly, you cannot specify the associated types of a protocol in a property.
+
+So, we could define the associated types into the **init** by using generics, but we cant hold a reference to it in a property. We could make the SceneDelegate define the associated types for the Scheduler, the problem is that SceneDelegate cannot have associated types because it is an NSObject Class and it wouldn't be instantiated properly by UIKit.
+
+So, we cannot pass the scheduler as a protocol, but we can pass the concrete protocol implementations like a **DispatchQueue**  as a scheduler (because it implements Scheduler), but by passing the concrete DispatchQueue scheduler, we are coupling the client with the DispatchQueue Scheduler only, but the immediate scheduler we created earlier, is not a DispatchQueue, so because we are coupled with DispatchQueue in this case, we cannot pass another type that is also a Scheduler. So we would like to pass AnyScheduler and we cannot do that with a protocol. 
+
+This problem is similar to the Publisher protocol, which has associated types, but we cannot pass publishers around like protocols due to the associated types, but we can pass concrete implementations of the protocol like the Publishers.Map<T> , because we can define the generic types with the concrete type, but again, by passing the map publisher we couple clients with the map publisher. What if we want to perform extra mappings like tryMap or subscribe or so on?.
+
+So the solution to this problem is **Type Erasure**. For example to decouple the clients from these concrete publishers Apple provides us with the **AnyPublisher** type erasure
+
+![image-20230727192837604](/Users/macbook/Library/Application Support/typora-user-images/image-20230727192837604.png)
+
+so here we create a chain of publishers but then we erase that chain, the types, with the AnyPublisher type erasure, so we can decouple the clients from the concrete types and still hold it passed as a parameter and hold it as a property.
+
+
+
+#### Implementing an AnyScheduler Type Erasure
+
+However, for some reason Apple doesnt provide us with **AnyScheduler** , which makes it very hard to pass schedulers as parameters or decouple the clients from concrete schedulers. But we can create our own **AnyScheduler** type erasure. To do this, lets do it following the same idea as in Apple's implementation of **AnyPublisher** :
+
+![image-20230727193847847](/Users/macbook/Library/Application Support/typora-user-images/image-20230727193847847.png)
+
+So in AnyPublisher, it defines the generic associated types, Output, Failure that matches the associated types in the protocol, and the AnyPublisher also implements the Publisher protocol, because the AnyPublisher will wrap a Publisher and AnyPublisher is also a Publisher thats why you can pass it around and chain it with other publishers
+
+![image-20230727194016151](/Users/macbook/Library/Application Support/typora-user-images/image-20230727194016151.png)
+
+So, we will follow the same idea here, we will start by literally copying and pasting the AnyPublisher type erasure from apple's docs and start modifying it.
+
+The idea is that we are going to wrap any scheduler provided in the init and it will erase its type behind the AnyScheduler, but internally it will delegate messages to the provided scheduler. This pattern is very similar to the decorator pattern.
+
+So one by one we are going to add all the properties required by the **<Scheduler>** protocol. We have a problem, though that is that we cannot hold any references to the Scheduler passed in the init, since the compiler doesnt know about its type, but we can delegate those messages using closures. For example to delegate the **now** **SchedulerTimeType**, we would do it like this:
+
+![image-20230727210812862](/Users/macbook/Library/Application Support/typora-user-images/image-20230727210812862.png)
+
+This is a challenge with strongly typed languages, you have to satisfy the compiler, and if the compiler doesnt understand the types you need to come up with these solutions. 
+
+Doing the same logic for all the required properties we have:
+
+```swift
+struct AnyScheduler<SchedulerTimeType: Strideable, SchedulerOptions>: Scheduler where SchedulerTimeType.Stride: SchedulerTimeIntervalConvertible {
+    private let _now: () -> SchedulerTimeType
+    private let _minimumTolerance: () -> SchedulerTimeType.Stride
+    private let _schedule: (SchedulerOptions?, @escaping () -> Void) -> Void
+    private let _scheduleAfter: (SchedulerTimeType, SchedulerTimeType.Stride, SchedulerOptions?, @escaping () -> Void) -> Void
+    private let _scheduleAfterInterval: (SchedulerTimeType, SchedulerTimeType.Stride, SchedulerTimeType.Stride, SchedulerOptions?, @escaping () -> Void) -> Cancellable
+
+    init<S>(_ scheduler: S) where SchedulerTimeType == S.SchedulerTimeType, SchedulerOptions == S.SchedulerOptions, S: Scheduler {
+        _now = { scheduler.now }
+        _minimumTolerance = { scheduler.minimumTolerance }
+        _schedule = scheduler.schedule(options:_:)
+        _scheduleAfter = scheduler.schedule(after:tolerance:options:_:)
+        _scheduleAfterInterval = scheduler.schedule(after:interval:tolerance:options:_:)
+    }
+
+    var now: SchedulerTimeType { _now() }
+
+    var minimumTolerance: SchedulerTimeType.Stride { _minimumTolerance() }
+
+    func schedule(options: SchedulerOptions?, _ action: @escaping () -> Void) {
+        _schedule(options, action)
+    }
+
+    func schedule(after date: SchedulerTimeType, tolerance: SchedulerTimeType.Stride, options: SchedulerOptions?, _ action: @escaping () -> Void) {
+        _scheduleAfter(date, tolerance, options, action)
+    }
+
+    func schedule(after date: SchedulerTimeType, interval: SchedulerTimeType.Stride, tolerance: SchedulerTimeType.Stride, options: SchedulerOptions?, _ action: @escaping () -> Void) -> Cancellable {
+        _scheduleAfterInterval(date, interval, tolerance, options, action)
+    }
+}
+```
+
+
+
+In the same way as we eraseToAnyPublisher, when we use type Erasure for AnyPublisher, we are going to create an API to be able to eraseToAnyScheduler, when we use type erasure for AnyScheduler, which will return an AnyScheduler, but mantaining the generic types.
+
+```swift
+extension Scheduler {
+    func eraseToAnyScheduler() -> AnyScheduler<SchedulerTimeType, SchedulerOptions> {
+        AnyScheduler(self)
+    }
+}
+```
+
+Which basically is wrapping the scheduler into an AnyScheduler.
+
+So now we can erase our scheduler in the Composition Root:
+
+```swift
+	private lazy var scheduler: AnyDispatchQueueScheduler = DispatchQueue(
+		label: "com.jmt.wot.FeedApp.FeedApp.infra.queue",
+		qos: .userInitiated,
+		attributes: .concurrent
+	).eraseToAnyScheduler()
+```
+
+So that its type is now **AnyScheduler<DispatchQueue.SchedulerTimeType, DispatchQueue.SchedulerOptions>**
+
+which is an AnyScheduler with the DispatchQueue associated types (since the type was originally a DispatchQueue object).
+
+It also happens that our **ImmediateWhenOnMainQueueScheduler: Scheduler** uses the same types:
+
+![image-20230727214029440](/Users/macbook/Library/Application Support/typora-user-images/image-20230727214029440.png)
+
+thus, we can inject now a scheduler into the Composition Root's init, and override it during tests:
+
+```swift
+convenience init(httpClient: HTTPClient, store: FeedStore & FeedImageDataStore, scheduler: AnyDispatchQueueScheduler) {
+        self.init()
+        self.httpClient = httpClient
+        self.store = store
+        self.scheduler = scheduler
+    }
+```
+
+Where the **AnyDispatchQueueScheduler** is a typealias we made to simplify the reading
+
+```swift
+typealias AnyDispatchQueueScheduler = AnyScheduler<DispatchQueue.SchedulerTimeType, DispatchQueue.SchedulerOptions>
+
+```
+
+And since as we noted earlier, 
+
+```swift
+extension AnyDispatchQueueScheduler {
+    static var immediateOnMainQueue: Self {
+        DispatchQueue.immediateWhenOnMainQueueScheduler.eraseToAnyScheduler()
+    }
+}
+```
+
+It also happens that our **ImmediateWhenOnMainQueueScheduler: Scheduler** uses the same types, therefore we create an extension to **AnyDispatchQueueScheduler** typealias that provides a static property that provides us with our **immediateOnMainQueue**  erased to any scheduler. This immediate scheduler is the one we will provide during tests.
+
+
+
+All our tests are running.
+
+
+
+The next step is to make the rest of our async API abstractions synchronous like the **<FeedCache>** and the **<FeedStore>** .
+
+
+
+**We dont need to make all our API's synchronous but it helps that they don't leak implementations that way, and we can always compose, in our Composition Root. It also helps that with less completion blocks it means we have to capture self much less avoiding potential memory retention cycles and arrow code.**
+
+
+
+### Synchronous FeedStore and FeedCache
+
+Applying the same logic that we applied for the previous API abstractions, we are going to make both FeedStore and FeedCache API's synchronous.
+
+Same as before, the first thing we will do is add the desired synchronous API methods to our **<FeedStore>** abstraction and at the same time deprecate the old asynchronous API methods. 
+
+The next step is to add default implementations in our new Sync API's that use the pre-existing async apis, in the meanwhile of our migration, aswell as default empty async implementations of our old async apis.
+
+```swift
+public protocol FeedStore {
+    func deleteCachedFeed() throws
+    func insert(_ feed: [LocalFeedImage], timestamp: Date) throws
+    func retrieve() throws -> CachedFeed?
+
+		...
+  	...
+  	...
+  
+    @available(*, deprecated)
+    func deleteCachedFeed(completion: @escaping DeletionCompletion)
+    
+    @available(*, deprecated)
+    func insert(_ feed: [LocalFeedImage], timestamp: Date, completion: @escaping InsertionCompletion)
+    
+    @available(*, deprecated)
+    func retrieve(completion: @escaping RetrievalCompletion)
+}
+```
+
+
+
+```swift
+public extension FeedStore {
+    func deleteCachedFeed() throws {
+        let group = DispatchGroup()
+        group.enter()
+        var result: DeletionResult!
+        deleteCachedFeed {
+            result = $0
+            group.leave()
+        }
+        group.wait()
+        return try result.get()
+    }
+    
+    func insert(_ feed: [LocalFeedImage], timestamp: Date) throws {
+        let group = DispatchGroup()
+        group.enter()
+        var result: InsertionResult!
+        insert(feed, timestamp: timestamp) {
+            result = $0
+            group.leave()
+        }
+        group.wait()
+        return try result.get()
+    }
+    
+    func retrieve() throws -> CachedFeed? {
+        let group = DispatchGroup()
+        group.enter()
+        var result: RetrievalResult!
+        retrieve {
+            result = $0
+            group.leave()
+        }
+        group.wait()
+        return try result.get()
+    }
+    
+    func deleteCachedFeed(completion: @escaping DeletionCompletion) {}
+    func insert(_ feed: [LocalFeedImage], timestamp: Date, completion: @escaping InsertionCompletion) {}
+    func retrieve(completion: @escaping RetrievalCompletion) {}
+}
+```
+
+
+
+In the exact same way as we did with the previous API's, we modify the existing tests to take into account synchronicity instead of asynchronicity.
+
+#### Making the LocalFeedLoader: FeedCache synchronous
+
+Now we have to migrate our **LocalFeedLoader: FeedCache** extension to conform to the new synchronous API's which means going from :
+
+```swift
+extension LocalFeedLoader: FeedCache {
+    public typealias SaveResult = FeedCache.Result
+    
+    public func save(_ feed: [FeedImage], completion: @escaping (SaveResult) -> Void) {
+        store.deleteCachedFeed { [weak self] deletionResult in
+            guard let self = self else { return }
+            
+            switch deletionResult {
+            case.success:
+                self.cache(feed, with: completion)
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+    }
+    
+    private func cache(_ feed: [FeedImage], with completion: @escaping (SaveResult) -> Void) {
+        store.insert(feed.toLocal(), timestamp: currentDate()) { [weak self] error in
+            guard self != nil else { return }
+           
+            completion(error)
+        }
+    }
+}		
+```
+
+To :
+
+```swift
+extension LocalFeedLoader: FeedCache {
+    public typealias SaveResult = FeedCache.Result
+    
+    public func save(_ feed: [FeedImage], completion: @escaping (SaveResult) -> Void) {
+        completion(SaveResult {
+            try store.deleteCachedFeed()
+            try store.insert(feed.toLocal(), timestamp: currentDate())
+        })
+    }
+}
+```
+
+As we can see we have drastically simplified our code by making it synchronous. Its possible to see we have reduced our code one indentation level and its much more easy to read. We have removed the switch statement, and the closure will simply return a .**failure** if it finds any of its **try** statements throwing, if it doesnt, then it completes with **success** .
+
+
+
+#### Making the LocalFeedLoader 'load(completion:)' method asynchronous
+
+Now we will change our **load(completion:)** method so that it uses our new sync api's. Changing it from:
+
+```swift
+extension LocalFeedLoader {
+    public typealias LoadResult = Swift.Result<[FeedImage], Error>
+    
+    public func load(completion: @escaping (LoadResult) -> Void) {
+        store.retrieve { [weak self] result in
+            guard let self = self else { return }
+            
+            switch result {
+            case .failure(let error):
+                completion(.failure(error))
+                
+            case .success(.some(let cache)) where FeedCachePolicy.validate(cache.timestamp, against: self.currentDate()):
+                completion(.success(cache.feed.toModels()))
+                
+            case .success:
+                completion(.success([]))
+            }
+        }
+    }
+}
+```
+
+To:
+
+```swift
+extension LocalFeedLoader {
+    public typealias LoadResult = Swift.Result<[FeedImage], Error>
+    
+    public func load(completion: @escaping (LoadResult) -> Void) {
+        completion(LoadResult {
+            if let cache = try store.retrieve(), FeedCachePolicy.validate(cache.timestamp, against: currentDate()) {
+                return cache.feed.toModels()
+            }
+            return []
+        })
+    }
+}
+```
+
+
+
+Same note as before, we are getting rid of our arrow code and switches, in favour of cleaner code with less completion blocks. In the same fashion, we wrap our result into a **Result** block where we check if the info is cached and then we validate that it respects the cache policy regarding its date. In the case of the **store.retrieve()** throwing, the Result block simply transforms it into a **.failure** result.
+
+The next step is to migrate our **validateCache(completion:)** method to use our new api's. This method is has similarities to the previous load method in the way that it's modified. Since our new api's dont have completion blocks, we dont need to switch the result, and thus getting rid of levels of arrow code.
+
+Previous:
+
+```swift
+extension LocalFeedLoader {
+    public typealias ValidationResult = Result<Void, Error>
+
+    public func validateCache(completion: @escaping (ValidationResult) -> Void) {
+        store.retrieve { [weak self] result in
+            guard let self = self else { return }
+            
+            switch result {
+            case .failure:
+                self.store.deleteCachedFeed(completion: completion)
+                
+            case let .success(.some(cache)) where !FeedCachePolicy.validate(cache.timestamp, against: self.currentDate()):
+                self.store.deleteCachedFeed(completion: completion)
+                
+            case .success:
+                completion(.success(()))
+            }
+        }
+    }
+}
+```
+
+New Api:
+
+```swift
+extension LocalFeedLoader {
+    public typealias ValidationResult = Result<Void, Error>
+    
+    private struct InvalidCache: Error {}
+    
+    public func validateCache(completion: @escaping (ValidationResult) -> Void) {
+        completion(ValidationResult {
+            do {
+                if let cache = try store.retrieve(), !FeedCachePolicy.validate(cache.timestamp, against: currentDate()) {
+                    throw InvalidCache()
+                }
+            } catch {
+                try store.deleteCachedFeed()
+            }
+        })
+    }
+}
+```
+
+As we analyze the previous code we can also see that we have one less **self** to capture, meaning we are actively reducing the chances of missing a memory cycle by mistake. We can see that the idea here is that we are going to check if the cache exists, and if it respects the cache policy. in case of success nothing happens, but in case of failure we throw an **InvalidCache** error, that is caught by our **catch** block, and which attempts to delete the outdated cache. We are prepared to have this invalid cache state, thats why if it happens we dont get a **.failure** as a result, but a **.success**. The way to get a **.failure** is if the deletion of an outdated cache fails.
+
+
+
+#### Make FeedCache Sync
+
+Next step is to make our **<FeedCache>** api abstraction synchronous. This abstraction only has one method, **save(_feed: completion)** and a Result typealias.
+
+```swift
+//Previously
+public protocol FeedCache {
+    typealias Result = Swift.Result<Void, Error>
+
+    func save(_ feed: [FeedImage], completion: @escaping (Result) -> Void)
+}
+
+//New sync api
+public protocol FeedCache {
+    func save(_ feed: [FeedImage]) throws
+}
+```
+
+Since we dont have a completion closure anymore, we dont need to have the Result typealias.
+
+Now we have to modify our previously modified **LocalFeedLoader: FeedCache** extension from this:
+
+```swift
+extension LocalFeedLoader: FeedCache {
+    public typealias SaveResult = FeedCache.Result
+    
+    public func save(_ feed: [FeedImage], completion: @escaping (SaveResult) -> Void) {
+        completion(SaveResult {
+            try store.deleteCachedFeed()
+            try store.insert(feed.toLocal(), timestamp: currentDate())
+        })
+    }
+    
+}
+```
+
+to this:
+
+```swift
+extension LocalFeedLoader: FeedCache {
+    public func save(_ feed: [FeedImage]) throws {
+        try store.deleteCachedFeed()
+        try store.insert(feed.toLocal(), timestamp: currentDate())
+    }
+}
+```
+
+As we can see, we dont need to have a **SaveResult** typealias anymore since we dont have a completion closure anymore, we also dont need to wrap our body in a Result block. Our new **save(_feed:) throws** methods just throws when there is an exception, meaning we can simply call the body of our method, containing the **try** statements, without further worries.
+
+We also change all the tests in the same way we did for our previous case adding necessary do-catch blocks where needed and making the logic synchronous.
+
+Next step is to refactor the **LocalFeedLoader**  **load** method :
+
+```swift
+//Previous (using async)
+extension LocalFeedLoader {
+    public typealias LoadResult = Swift.Result<[FeedImage], Error>
+    
+    public func load(completion: @escaping (LoadResult) -> Void) {
+        completion(LoadResult {
+            if let cache = try store.retrieve(), FeedCachePolicy.validate(cache.timestamp, against: currentDate()) {
+                return cache.feed.toModels()
+            }
+            return []
+        })
+    }
+}
+
+//Actual (sync)
+
+extension LocalFeedLoader {
+    public func load() throws -> [FeedImage] {
+        if let cache = try store.retrieve(), FeedCachePolicy.validate(cache.timestamp, against: currentDate()) {
+            return cache.feed.toModels()
+        }
+        return []
+    }
+}
+```
+
+With this change, we will always either get an array of FeedImage (either empty or with the cached feedimages) or it will throw an error. This way we get rid of the completion blocks and the arrow code.
+
+Its also necessary that we make a small change in our **CombineHelpers**, we need to change our **loadPublisher() -> Publisher** method because it uses the old version (async) of our **LocalFeedLoader.load** method. 
+
+We go from: 
+
+```swift
+public extension LocalFeedLoader {
+    typealias Publisher = AnyPublisher<[FeedImage], Error>
+    
+    func loadPublisher() -> Publisher {
+        Deferred {
+            Future(self.load)
+        }
+        .eraseToAnyPublisher()
+    }
+}
+```
+
+to:
+
+```swift
+public extension LocalFeedLoader {
+    typealias Publisher = AnyPublisher<[FeedImage], Error>
+    
+    func loadPublisher() -> Publisher {
+        Deferred {
+            Future { completion in
+                completion(Result{ try self.load() })
+            }
+        }
+        .eraseToAnyPublisher()
+    }
+}
+```
+
+Since our load used to have a completion closure, but not it doesnt, we will have to wrap our new **load** function in a completion block with a Result, type.
+
+
+
+#### Making LocalFeedLoader.validateCache synchronous
+
+Continuing the migration from async api's to the new sync ones, its time to migrate LocalFeedLoader's **validateCache** method.
+
+Originally the method returned a completion closure containing a **ValidationResult** that consisted in a Result<Void, Error>, the new api, however, doesn't need a completion closure since its synchronous, it will either succeed or throw.
+
+The original **validateCache** was this: 
+
+```swift
+extension LocalFeedLoader {
+    public typealias ValidationResult = Result<Void, Error>
+    
+    private struct InvalidCache: Error {}
+    
+    public func validateCache(completion: @escaping (ValidationResult) -> Void) {
+        completion(ValidationResult {
+            do {
+                if let cache = try store.retrieve(), !FeedCachePolicy.validate(cache.timestamp, against: currentDate()) {
+                    throw InvalidCache()
+                }
+            } catch {
+                try store.deleteCachedFeed()
+            }
+        })
+    }
+}
+```
+
+
+
+The synchronous version is:
+
+```swift
+extension LocalFeedLoader {
+    private struct InvalidCache: Error {}
+    
+    public func validateCache() throws {
+        do {
+            if let cache = try store.retrieve(), !FeedCachePolicy.validate(cache.timestamp, against: currentDate()) {
+                throw InvalidCache()
+            }
+        } catch {
+            try store.deleteCachedFeed()
+        }
+    }
+}
+```
+
+
+
+Previously, we had updated this method to comply with our new synch apis from the Cache, this time we are doing another round of refactoring to bring this method completely synchronous, since we dont need completion handlers anymore because we have migrated our apis to sync. As stated earlier, the **ValidationResult** is no longer needed, and we can see that we are losing one more level of indentation and arrow code by getting rid of the completion wrapper.
+
+This change must also be accompanied by a refactor to the **SceneDelegate**, in the **sceneWillResignActive** delegate method, where we were executing a cache validation before the app was closed killed or sent to background. An adjustment is added to reflect the api changes:
+
+```swift
+//Before
+func sceneWillResignActive(_ scene: UIScene) {
+        localFeedLoader.validateCache { _ in }
+}
+    
+//After
+
+func sceneWillResignActive(_ scene: UIScene) {
+    do {
+        try localFeedLoader.validateCache()
+    } catch {
+        logger.error("Failed to validate cache with error: \(error.localizedDescription)")
+    }
+}
+```
+
+
+
+####       Make CoreData FeedStore implementation sync    
+
+Following step is to migrate our **CoreData** **FeedStore** implementation from async api, to sync api. For this, we are going to migrate the three **FeedStore** Api implementations made on the **CoreDataFeedStore**, **retrieve, insert and deleteCachedFeed**:
+
+**Retrieve**
+
+```swift
+//Async API
+public func retrieve(completion: @escaping RetrievalCompletion) {
+    performAsync { context in
+        completion(Result {
+            try ManagedCache.find(in: context).map {
+                CachedFeed(feed: $0.localFeed, timestamp: $0.timestamp)
+            }
+        })
+    }
+}
+
+//Sync API
+public func retrieve() throws -> CachedFeed? {
+    try performSync { context in
+        Result {
+            try ManagedCache.find(in: context).map {
+                CachedFeed(feed: $0.localFeed, timestamp: $0.timestamp)
+            }
+        }
+    }
+}
+```
+
+
+
+As we did previously with the migration of our previous API's, we are going to migrate from using the **performAsync** to the **performSync** CoreData context methods. Since we don't have completion handlers, we can reduce our code indentation one level, getting rid of the completion block. If this operation succeeds we will return the CachedFeed, and if it fails we will return nil.
+
+**Insert**
+
+```swift
+//Async API
+public func insert(_ feed: [LocalFeedImage], timestamp: Date, completion: @escaping InsertionCompletion) {
+    performAsync { context in
+        completion(Result {
+            let managedCache = try ManagedCache.newUniqueInstance(in: context)
+            managedCache.timestamp = timestamp
+            managedCache.feed = ManagedFeedImage.images(from: feed, in: context)
+            try context.save()
+        })
+    }
+}
+
+//Sync
+public func insert(_ feed: [LocalFeedImage], timestamp: Date) throws {
+    try performSync { context in
+        Result {
+            let managedCache = try ManagedCache.newUniqueInstance(in: context)
+            managedCache.timestamp = timestamp
+            managedCache.feed = ManagedFeedImage.images(from: feed, in: context)
+            try context.save()
+        }
+    }
+}
+```
+
+
+
+**DeleteCachedFeed**
+
+```swift
+//Async
+public func deleteCachedFeed(completion: @escaping DeletionCompletion) {
+    performAsync { context in
+        completion(Result {
+            try ManagedCache.deleteCache(in: context)
+        })
+    }
+}
+//Sync
+public func deleteCachedFeed() throws {
+    try performSync { context in
+        Result {
+            try ManagedCache.deleteCache(in: context)
+        }
+    }
+}
+```
+
+
+
+
+
+**NullStore**
+
+We will also adapt our NullStore to work with the new sync apis, which since we dont have completion blocks anymore, can just be empty methods or return nil:
+
+```swift
+extension NullStore: FeedStore {
+    func deleteCachedFeed() throws {}
+    
+    func insert(_ feed: [LocalFeedImage], timestamp: Date) throws {}
+    
+    func retrieve() throws -> CachedFeed? { .none }
+}
+```
+
+
+
+**InMemoryFeedStore**
+
+
+
+```swift
+extension InMemoryFeedStore: FeedStore {
+    func deleteCachedFeed() throws {
+        feedCache = nil
+    }
+    
+    func insert(_ feed: [LocalFeedImage], timestamp: Date) throws {
+        feedCache = CachedFeed(feed: feed, timestamp: timestamp)
+    }
+    
+    func retrieve() throws -> CachedFeed? {
+        feedCache
+    }
+}
+```
+
+
+
+#### Cleaning up
+
+Now that the new sync api's are in play, its time to remove the old API's and result types that arent used anymore from the **<FeedStore>** , the final code is:
+
+```swift
+public typealias CachedFeed = (feed: [LocalFeedImage], timestamp: Date)
+
+public protocol FeedStore {
+    func deleteCachedFeed() throws
+    func insert(_ feed: [LocalFeedImage], timestamp: Date) throws
+    func retrieve() throws -> CachedFeed?
+}
+```
+
+We delete the old api's aswell as the default implementations and the deprecated ones. 
+
+
+
+#### Subscribe upstream store subscriptions in a background queue
+
+In the same way as we did earlier in other parts of the project, we will make the **makeRemoteFeedLoaderWithFallback** , and **makeRemoteLoadMoreLoader** subscribe upstream in a background thread, in the **scheduler** we created previously in this project.
+
+```swift
+private func makeRemoteFeedLoaderWithLocalFallback() -> AnyPublisher<Paginated<FeedImage>, Error> {
+    makeRemoteFeedLoader()
+        .caching(to: localFeedLoader)
+        .fallback(to: localFeedLoader.loadPublisher)
+        .map(makeFirstPage)
+        .subscribe(on: scheduler)
+        .eraseToAnyPublisher()
+}
+
+private func makeRemoteLoadMoreLoader(last: FeedImage?) -> AnyPublisher<Paginated<FeedImage>, Error> {
+    localFeedLoader.loadPublisher()
+        .zip(makeRemoteFeedLoader(after: last))
+        .map { (cachedItems, newItems) in
+            (cachedItems + newItems, newItems.last)
+        }
+        .map(makePage)
+        .caching(to: localFeedLoader)
+        .subscribe(on: scheduler)
+        .eraseToAnyPublisher()
+}
+```
+
 
 
 
