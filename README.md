@@ -18,3 +18,7 @@
 - Add like capability
 - Generizise the Framework more to be able to easily implement any kind of networking
 - Make a version of this project using SwiftUI
+
+
+## ScreenCap
+![Alt Text](screencap.gif)
